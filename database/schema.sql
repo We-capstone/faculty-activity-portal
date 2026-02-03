@@ -48,12 +48,12 @@ CREATE TABLE faculty_qualifications (
 
 /* =====================================================
    LOOKUP TABLES
-   ===================================================== */
+--    ===================================================== */
 
-CREATE TABLE publication_indexing (
-    indexing_id INT AUTO_INCREMENT PRIMARY KEY,
-    indexing_name VARCHAR(50) UNIQUE NOT NULL
-);
+-- CREATE TABLE publication_indexing (
+--     indexing_id INT AUTO_INCREMENT PRIMARY KEY,
+--     indexing_name VARCHAR(50) UNIQUE NOT NULL
+-- );
 
 /* =====================================================
    JOURNAL PUBLICATIONS

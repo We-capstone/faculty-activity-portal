@@ -1,43 +1,67 @@
-// Ensure these match your actual Supabase settings
+// // Ensure these match your actual Supabase settings
 const SUPABASE_URL = "https://jfnbgnqmdxyfykrklphq.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpmbmJnbnFtZHh5ZnlrcmtscGhxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk3NjQwMTAsImV4cCI6MjA4NTM0MDAxMH0.D4f5fiMkSKRGKiP1bYvZiOtuJp9yivxSj5sUT2A66fw";
-const BACKEND_URL = "http://localhost:5000/api/journals";
+const BACKEND_URL = "http://localhost:5000/api"; // Points to base API
 
-console.log("✅ app.js loaded and Supabase initialized");
-
+// Initialize Supabase with persistence enabled (default)
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+console.log("✅ Supabase initialized");
+
+// --- SESSION MANAGEMENT ---
+
+// Check session on load to keep user logged in
+window.addEventListener('load', async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session) {
+        console.log("Session restored for:", session.user.email);
+        renderUI(session.user);
+        fetchJournals();
+    }
+});
+
+// Listen for Auth changes
+supabase.auth.onAuthStateChange((event, session) => {
+    if (event === 'SIGNED_IN' && session) {
+        renderUI(session.user);
+        fetchJournals();
+    }
+    if (event === 'SIGNED_OUT') {
+        location.reload(); 
+    }
+});
+
+// Unified UI Handler
+function renderUI(user) {
+    const role = user.user_metadata.role;
+    document.getElementById('auth-section').classList.add('hidden');
+    document.getElementById('journal-section').classList.remove('hidden');
+    document.getElementById('user-display').innerText = `${user.email} (${role})`;
+
+    // Show Admin Section ONLY if role is ADMIN
+    const adminSection = document.getElementById('admin-section');
+    if (adminSection) {
+        if (role === 'ADMIN') adminSection.classList.remove('hidden');
+        else adminSection.classList.add('hidden');
+    }
+}
+
+// --- AUTH ACTIONS ---
 
 async function handleSignUp() {
-    console.log("🚀 Signup button clicked");
-
     const email = document.getElementById('email').value;
     const password = document.getElementById('password').value;
     const full_name = document.getElementById('full_name').value;
     const department = document.getElementById('department').value;
-    const role = document.getElementById('role').value; // Should be 'FACULTY' or 'ADMIN'
-
-    console.log("Attempting signup for:", email);
+    const role = document.getElementById('role').value;
 
     const { data, error } = await supabase.auth.signUp({
         email,
         password,
-        options: {
-            data: { 
-                full_name: full_name,
-                department: department,
-                role: role // Ensure this is UPPERCASE to match your Postgres ENUM
-            }
-        }
+        options: { data: { full_name, department, role } }
     });
 
-    if (error) {
-        console.error("Signup Error:", error.message);
-        alert("Signup Failed: " + error.message);
-    } else {
-        console.log("Signup Success:", data);
-        alert("Signup successful! Please check your email for a confirmation link.");
-        // Note: If email confirmation is ON, you cannot login until you click the link.
-    }
+    if (error) alert("Signup Failed: " + error.message);
+    else console.log("🔑 Signup JWT Token:", data.session.access_token);
 }
 
 async function handleLogin() {
@@ -48,22 +72,16 @@ async function handleLogin() {
 
     if (error) return alert("Login Error: " + error.message);
     
-    setupUI(data.user);
-    fetchJournals();
-}
-
-function setupUI(user) {
-    document.getElementById('auth-section').classList.add('hidden');
-    document.getElementById('journal-section').classList.remove('hidden');
-    document.getElementById('user-display').innerText = `${user.email} (${user.user_metadata.role})`;
+    console.log("🔑 Signup JWT Token:", data.session.access_token);
+    console.log("✅ Login Success");
 }
 
 async function handleLogout() {
     await supabase.auth.signOut();
-    location.reload();
 }
 
-// 3. Journal CRUD Logic (Calling your Node.js Backend)
+// --- JOURNAL ACTIONS ---
+
 async function getHeaders() {
     const { data: { session } } = await supabase.auth.getSession();
     return {
@@ -79,7 +97,7 @@ async function createJournal() {
         indexing_details: document.getElementById('indexing_details').value
     };
 
-    const response = await fetch(BACKEND_URL, {
+    const response = await fetch(`${BACKEND_URL}/journals`, {
         method: 'POST',
         headers: await getHeaders(),
         body: JSON.stringify(journalData)
@@ -95,52 +113,58 @@ async function createJournal() {
 }
 
 async function fetchJournals() {
-    const response = await fetch(BACKEND_URL, {
+    const response = await fetch(`${BACKEND_URL}/journals`, {
         headers: await getHeaders()
     });
     
     const data = await response.json();
-    console.log("Fetched Data:", data); // Check the console to see what you actually got!
-
     const listDiv = document.getElementById('journal-list');
 
-    // CHECK: If data is an error object instead of an array
     if (!Array.isArray(data)) {
-        listDiv.innerHTML = `<p style="color:red">Error: ${data.error || 'Failed to load journals'}</p>`;
+        listDiv.innerHTML = `<p style="color:red">No records found or error occurred.</p>`;
         return;
     }
 
-    // Now it's safe to map
     listDiv.innerHTML = data.map(j => `
         <div class="journal-card">
             <div>
                 <strong>${j.title}</strong><br>
-                <small>${j.journal_name} | ${j.indexing_details}</small>
+                <small>${j.journal_name} | ID: ${j.journal_id}</small>
             </div>
             <div>
-                <span class="status">${j.status}</span>
+                <span class="status" style="color: ${j.status === 'APPROVED' ? 'green' : 'orange'}">${j.status}</span>
                 <button onclick="deleteJournal('${j.journal_id}')" style="background:#6b7280; padding: 2px 5px; margin-left:10px;">Delete</button>
             </div>
         </div>
     `).join('');
 }
 
-async function deleteJournal(id) {
-    // if (!confirm("Delete this record?")) return;
-    
-    const response = await fetch(`${BACKEND_URL}/${id}`, {
-        method: 'DELETE',
-        headers: await getHeaders()
+// --- ADMIN ACTION ---
+
+async function updateStatus() {
+    const id = document.getElementById('target-id').value.trim();
+    const action = document.getElementById('admin-action').value;
+    const remarks = document.getElementById('admin-remarks').value;
+
+    const response = await fetch(`${BACKEND_URL}/admin/journals/${id}/status`, {
+        method: 'PATCH',
+        headers: await getHeaders(),
+        body: JSON.stringify({ action, remarks })
     });
 
-    if (response.ok) fetchJournals();
+    if (response.ok) {
+        alert("Status Updated Successfully!");
+        fetchJournals();
+    } else {
+        const err = await response.json();
+        alert("Error: " + err.error);
+    }
 }
 
-// --- ATTACH TO WINDOW (Add this at the end of app.js) ---
-
+// --- EXPOSE TO WINDOW ---
 window.handleSignUp = handleSignUp;
 window.handleLogin = handleLogin;
 window.handleLogout = handleLogout;
 window.createJournal = createJournal;
 window.fetchJournals = fetchJournals;
-window.deleteJournal = deleteJournal;
+window.updateStatus = updateStatus;

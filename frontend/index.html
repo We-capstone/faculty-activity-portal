@@ -2,16 +2,19 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Faculty Portal Test Bench</title>
     <style>
-        body { font-family: sans-serif; max-width: 800px; margin: 20px auto; line-height: 1.6; }
-        .section { border: 1px solid #ccc; padding: 15px; margin-bottom: 20px; border-radius: 8px; }
-        input, select, textarea { display: block; margin: 10px 0; width: 100%; padding: 8px; }
-        button { padding: 10px 15px; cursor: pointer; background: #24b47e; color: white; border: none; border-radius: 4px; }
+        body { font-family: sans-serif; max-width: 800px; margin: 20px auto; line-height: 1.6; background-color: #f4f7f6; }
+        .section { background: white; border: 1px solid #ccc; padding: 15px; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        input, select, textarea { display: block; margin: 10px 0; width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
+        button { padding: 10px 15px; cursor: pointer; background: #24b47e; color: white; border: none; border-radius: 4px; font-weight: bold; }
+        button:hover { opacity: 0.9; }
         .hidden { display: none; }
-        .journal-card { border-bottom: 1px solid #eee; padding: 10px 0; display: flex; justify-content: space-between; }
-        .status { font-weight: bold; text-transform: uppercase; font-size: 0.8em; }
+        .journal-card { border-bottom: 1px solid #eee; padding: 15px 0; display: flex; justify-content: space-between; align-items: center; }
+        .status { font-weight: bold; text-transform: uppercase; font-size: 0.85em; padding: 4px 8px; border-radius: 4px; background: #f0f0f0; }
+        hr { border: 0; border-top: 1px solid #eee; margin: 20px 0; }
+        .admin-box { border: 2px solid #3b82f6; background-color: #eff6ff; }
     </style>
 </head>
 <body>
@@ -22,24 +25,29 @@
         <h3>Sign Up / Login</h3>
         <input type="email" id="email" placeholder="Email">
         <input type="password" id="password" placeholder="Password">
+        
         <div id="signup-fields">
             <input type="text" id="full_name" placeholder="Full Name">
             <input type="text" id="department" placeholder="Department">
+            <label for="role">Select Role:</label>
             <select id="role">
                 <option value="FACULTY">FACULTY</option>
                 <option value="ADMIN">ADMIN</option>
             </select>
         </div>
-        <button onclick="handleSignUp()">Sign Up</button>
-        <button onclick="handleLogin()" style="background:#3b82f6">Login</button>
+        
+        <div style="display: flex; gap: 10px;">
+            <button onclick="handleSignUp()">Sign Up</button>
+            <button onclick="handleLogin()" style="background:#3b82f6">Login</button>
+        </div>
     </div>
 
     <div id="journal-section" class="section hidden">
-        <div style="display:flex; justify-content: space-between;">
+        <div style="display:flex; justify-content: space-between; align-items: center;">
             <h3>Journal Management</h3>
             <button onclick="handleLogout()" style="background:#ef4444">Logout</button>
         </div>
-        <p>Logged in as: <span id="user-display"></span></p>
+        <p>Logged in as: <strong id="user-display"></strong></p>
 
         <h4>Add New Publication</h4>
         <input type="text" id="title" placeholder="Paper Title">
@@ -48,9 +56,24 @@
         <button onclick="createJournal()">Submit Journal</button>
 
         <hr>
+
+        <div id="admin-section" class="section admin-box hidden">
+            <h4 style="margin-top: 0; color: #1d4ed8;">Admin Approval Bench</h4>
+            <p style="font-size: 0.9em; color: #1e40af;">Enter a Journal ID to approve or reject:</p>
+            <input type="text" id="target-id" placeholder="Paste Journal ID (UUID) here">
+            
+            <select id="admin-action">
+                <option value="APPROVED">APPROVE</option>
+                <option value="REJECTED">REJECT</option>
+            </select>
+            
+            <textarea id="admin-remarks" placeholder="Optional remarks..."></textarea>
+            <button onclick="updateStatus()" style="background:#3b82f6">Update Status</button>
+        </div>
+
         <h4>Records</h4>
-        <button onclick="fetchJournals()">Refresh List</button>
-        <div id="journal-list"></div>
+        <button onclick="fetchJournals()" style="background:#6b7280">Refresh List</button>
+        <div id="journal-list" style="margin-top: 15px;"></div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
