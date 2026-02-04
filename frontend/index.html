@@ -1,82 +1,267 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Faculty Portal Test Bench</title>
-    <style>
-        body { font-family: sans-serif; max-width: 800px; margin: 20px auto; line-height: 1.6; background-color: #f4f7f6; }
-        .section { background: white; border: 1px solid #ccc; padding: 15px; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        input, select, textarea { display: block; margin: 10px 0; width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
-        button { padding: 10px 15px; cursor: pointer; background: #24b47e; color: white; border: none; border-radius: 4px; font-weight: bold; }
-        button:hover { opacity: 0.9; }
-        .hidden { display: none; }
-        .journal-card { border-bottom: 1px solid #eee; padding: 15px 0; display: flex; justify-content: space-between; align-items: center; }
-        .status { font-weight: bold; text-transform: uppercase; font-size: 0.85em; padding: 4px 8px; border-radius: 4px; background: #f0f0f0; }
-        hr { border: 0; border-top: 1px solid #eee; margin: 20px 0; }
-        .admin-box { border: 2px solid #3b82f6; background-color: #eff6ff; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Faculty Activity Portal</title>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script type="module" src="app.js"></script>
+
+<style>
+
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #f3f4f6;
+}
+
+.hidden {
+  display: none;
+}
+
+/* AUTH */
+
+.auth-box {
+  max-width: 400px;
+  background: white;
+  padding: 25px;
+  margin: 80px auto;
+  border-radius: 10px;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+}
+
+/* DASHBOARD LAYOUT */
+
+.dashboard {
+  display: flex;
+  min-height: 100vh;
+}
+
+/* SIDEBAR */
+
+.sidebar {
+  width: 220px;
+  background: #111827;
+  color: white;
+  padding: 20px;
+}
+
+.sidebar h2 {
+  margin-bottom: 30px;
+}
+
+.sidebar button {
+  width: 100%;
+  padding: 10px;
+  margin-top: 10px;
+  border: none;
+  background: #1f2937;
+  color: white;
+  cursor: pointer;
+  border-radius: 5px;
+}
+
+.sidebar button:hover {
+  background: #374151;
+}
+
+/* MAIN */
+
+.main {
+  flex: 1;
+  padding: 25px;
+}
+
+/* TOP BAR */
+
+.topbar {
+  background: white;
+  padding: 15px 20px;
+  border-radius: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+/* CARDS */
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit,minmax(200px,1fr));
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.card {
+  background: white;
+  padding: 20px;
+  border-radius: 10px;
+  box-shadow: 0 3px 8px rgba(0,0,0,0.05);
+}
+
+/* FORM */
+
+input, select, textarea {
+  width: 100%;
+  padding: 10px;
+  margin-top: 8px;
+  margin-bottom: 12px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+}
+
+button.primary {
+  background: #2563eb;
+  color: white;
+  border: none;
+  padding: 10px 15px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+button.primary:hover {
+  opacity: 0.9;
+}
+
+/* JOURNAL LIST */
+
+.journal-card {
+  background: white;
+  padding: 15px;
+  border-radius: 8px;
+  margin-bottom: 10px;
+  display: flex;
+  justify-content: space-between;
+}
+
+.admin-box {
+  border-left: 5px solid #2563eb;
+  padding-left: 15px;
+  margin-top: 20px;
+}
+
+</style>
 </head>
+
 <body>
 
-    <h2>Academic Journal System Test</h2>
+<!-- AUTH -->
 
-    <div id="auth-section" class="section">
-        <h3>Sign Up / Login</h3>
-        <input type="email" id="email" placeholder="Email">
-        <input type="password" id="password" placeholder="Password">
-        
-        <div id="signup-fields">
-            <input type="text" id="full_name" placeholder="Full Name">
-            <input type="text" id="department" placeholder="Department">
-            <label for="role">Select Role:</label>
-            <select id="role">
-                <option value="FACULTY">FACULTY</option>
-                <option value="ADMIN">ADMIN</option>
-            </select>
-        </div>
-        
-        <div style="display: flex; gap: 10px;">
-            <button onclick="handleSignUp()">Sign Up</button>
-            <button onclick="handleLogin()" style="background:#3b82f6">Login</button>
-        </div>
+<div id="auth-section" class="auth-box">
+
+  <h2>Login / Signup</h2>
+
+  <input id="email" placeholder="Email">
+  <input id="password" type="password" placeholder="Password">
+
+  <input id="full_name" placeholder="Full Name">
+  <input id="department" placeholder="Department">
+
+  <select id="role">
+    <option value="FACULTY">FACULTY</option>
+    <option value="ADMIN">ADMIN</option>
+  </select>
+
+  <button class="primary" onclick="handleLogin()">Login</button>
+  <button class="primary" onclick="handleSignUp()">Signup</button>
+
+</div>
+
+<!-- DASHBOARD -->
+
+<div id="journal-section" class="dashboard hidden">
+
+  <!-- SIDEBAR -->
+
+  <div class="sidebar">
+
+    <h2>Faculty Portal</h2>
+
+    <p id="user-display"></p>
+
+    <button onclick="fetchJournals()">Refresh Journals</button>
+
+    <button onclick="handleLogout()" style="background:#dc2626;">Logout</button>
+
+  </div>
+
+  <!-- MAIN -->
+
+  <div class="main">
+
+    <!-- TOP BAR -->
+
+    <div class="topbar">
+      <h3>Dashboard</h3>
     </div>
 
-    <div id="journal-section" class="section hidden">
-        <div style="display:flex; justify-content: space-between; align-items: center;">
-            <h3>Journal Management</h3>
-            <button onclick="handleLogout()" style="background:#ef4444">Logout</button>
-        </div>
-        <p>Logged in as: <strong id="user-display"></strong></p>
+    <!-- STATS -->
 
-        <h4>Add New Publication</h4>
-        <input type="text" id="title" placeholder="Paper Title">
-        <input type="text" id="journal_name" placeholder="Journal Name">
-        <input type="text" id="indexing_details" placeholder="Indexing (Scopus, Web of Science, etc.)">
-        <button onclick="createJournal()">Submit Journal</button>
+    <div class="cards">
+      <div class="card">
+        <h4>Total Journals</h4>
+        <p id="total-count">Auto</p>
+      </div>
 
-        <hr>
+      <div class="card">
+        <h4>Approved</h4>
+        <p id="approved-count">Auto</p>
+      </div>
 
-        <div id="admin-section" class="section admin-box hidden">
-            <h4 style="margin-top: 0; color: #1d4ed8;">Admin Approval Bench</h4>
-            <p style="font-size: 0.9em; color: #1e40af;">Enter a Journal ID to approve or reject:</p>
-            <input type="text" id="target-id" placeholder="Paste Journal ID (UUID) here">
-            
-            <select id="admin-action">
-                <option value="APPROVED">APPROVE</option>
-                <option value="REJECTED">REJECT</option>
-            </select>
-            
-            <textarea id="admin-remarks" placeholder="Optional remarks..."></textarea>
-            <button onclick="updateStatus()" style="background:#3b82f6">Update Status</button>
-        </div>
-
-        <h4>Records</h4>
-        <button onclick="fetchJournals()" style="background:#6b7280">Refresh List</button>
-        <div id="journal-list" style="margin-top: 15px;"></div>
+      <div class="card">
+        <h4>Pending</h4>
+        <p id="pending-count">Auto</p>
+      </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script type="module" src="app.js"></script>
+    <!-- ADD JOURNAL -->
+
+    <div class="card">
+
+      <h4>Add Publication</h4>
+
+      <input id="title" placeholder="Title">
+      <input id="journal_name" placeholder="Journal Name">
+      <input id="indexing_details" placeholder="Indexing">
+
+      <button class="primary" onclick="createJournal()">Submit</button>
+
+    </div>
+
+    <!-- ADMIN PANEL -->
+
+    <div id="admin-section" class="card admin-box hidden">
+
+      <h4>Admin Controls</h4>
+
+      <input id="target-id" placeholder="Journal ID">
+
+      <select id="admin-action">
+        <option value="APPROVED">APPROVE</option>
+        <option value="REJECTED">REJECT</option>
+      </select>
+
+      <textarea id="admin-remarks" placeholder="Remarks"></textarea>
+
+      <button class="primary" onclick="updateStatus()">Update Status</button>
+
+    </div>
+
+    <!-- JOURNALS -->
+
+    <div class="card">
+
+      <h4>Journal Records</h4>
+
+      <div id="journal-list"></div>
+
+    </div>
+
+  </div>
+
+</div>
+
 </body>
 </html>
