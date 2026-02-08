@@ -5,7 +5,7 @@ const TABLE_MAP = {
   journals: 'journal_publications',
   conferences: 'conference_publications',
   patents: 'patents',
-  funding: 'research_funding'
+  research_funding: 'research_funding'
 };
 
 export const getApprovals = async (req, res) => {
@@ -70,7 +70,7 @@ export const handleStatusUpdate = async (req, res) => {
             journals: 'journal_id',
             conferences: 'conference_id',
             patents: 'patent_id',
-            funding: 'funding_id'
+            research_funding: 'funding_id'
         };
 
         const pkName = pkMapping[module];
