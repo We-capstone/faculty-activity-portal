@@ -61,7 +61,7 @@ CREATE TABLE faculty_qualifications (
 
 CREATE TABLE journal_publications (
     journal_id INT AUTO_INCREMENT PRIMARY KEY,
-    faculty_id INT NOT NULL,
+    profile_id uuid NOT NULL,
     title VARCHAR(255) NOT NULL,
     journal_name VARCHAR(255),
     author_position INT,
