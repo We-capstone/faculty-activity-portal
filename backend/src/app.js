@@ -5,6 +5,7 @@ import supabase from './config/supabase.js';
 import journalRoutes from './routes/journalRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 import facultyRoutes from "./routes/facultyRoutes.js";
+import analyticsRoutes from "./routes/analyticsRoutes.js"; // New Import
 
 dotenv.config();
 
@@ -17,8 +18,9 @@ app.use(express.urlencoded({ extended: true }));
 
 // Mount Routes
 app.use('/api/journals', journalRoutes);
-app.use('/api/admin', adminRoutes); // Dynamic import for admin routes
+app.use('/api/admin', adminRoutes); 
 app.use("/api/faculty", facultyRoutes);
+app.use("/api/analytics", analyticsRoutes); // New Analytics Mount
 
 // Database Connection Health Check
 (async () => {
