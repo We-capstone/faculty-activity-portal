@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { supabase } from '../supabase';
 import { apiRequest } from '../apiClient';
 import BlueLoader from '../components/BlueLoader';
@@ -20,6 +21,41 @@ const flattenApprovalPayload = (payload, status) =>
     }))
   );
 
+const QUICK_LINKS = [
+  {
+    to: '/admin/approvals',
+    title: 'Pending Approvals',
+    description: 'Review and moderate faculty submissions',
+    icon: 'approvals'
+  },
+  {
+    to: '/admin/ranking',
+    title: 'Faculty Rankings',
+    description: 'Track department-wise research performance',
+    icon: 'ranking'
+  }
+];
+const QuickLinkIcon = ({ icon }) => {
+  if (icon === 'approvals') {
+    return (
+      <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5" stroke="currentColor" strokeWidth="1.8">
+        <rect x="5" y="3" width="14" height="18" rx="2.5" />
+        <path d="M9 3.5h6" strokeLinecap="round" />
+        <path d="M8.5 10h7M8.5 14h4" strokeLinecap="round" />
+        <path d="m13.3 16.3 1.6 1.6 3-3" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    );
+  }
+
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5" stroke="currentColor" strokeWidth="1.8">
+      <path d="M4 20h16" strokeLinecap="round" />
+      <rect x="6" y="11" width="3" height="6" rx="0.8" />
+      <rect x="11" y="8" width="3" height="9" rx="0.8" />
+      <rect x="16" y="5" width="3" height="12" rx="0.8" />
+    </svg>
+  );
+};
 const AdminDashboard = () => {
   const [stats, setStats] = useState([]);
   const [recentActivities, setRecentActivities] = useState([]);
@@ -41,10 +77,10 @@ const AdminDashboard = () => {
         console.info('[AdminDashboard] Fetching analytics and approvals from backend APIs');
 
         const [adminStats, pendingPayload, approvedPayload, rejectedPayload, profilesResponse] = await Promise.all([
-          apiRequest('/api/analytics/admin/stats', { token: session.access_token }),
-          apiRequest('/api/admin/approvals?status=PENDING', { token: session.access_token }),
-          apiRequest('/api/admin/approvals?status=APPROVED', { token: session.access_token }),
-          apiRequest('/api/admin/approvals?status=REJECTED', { token: session.access_token }),
+          apiRequest('/analytics/admin/stats', { token: session.access_token }),
+          apiRequest('/admin/approvals?status=PENDING', { token: session.access_token }),
+          apiRequest('/admin/approvals?status=APPROVED', { token: session.access_token }),
+          apiRequest('/admin/approvals?status=REJECTED', { token: session.access_token }),
           supabase.from('profiles').select('id, role')
         ]);
 
@@ -76,6 +112,7 @@ const AdminDashboard = () => {
           ...flattenApprovalPayload(approvedPayload, 'APPROVED'),
           ...flattenApprovalPayload(rejectedPayload, 'REJECTED')
         ];
+        const activeModules = new Set(allActivities.map((item) => item.module).filter(Boolean)).size;
 
         const sortedActivities = allActivities
           .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))
@@ -85,7 +122,7 @@ const AdminDashboard = () => {
           { label: 'Total Faculty', value: facultyCount, icon: 'TF', color: 'bg-blue-500' },
           { label: 'Pending Approvals', value: pendingCount, icon: 'PA', color: 'bg-yellow-500' },
           { label: 'Total Submissions', value: totalSubmissions, icon: 'TS', color: 'bg-green-500' },
-          { label: 'Modules Active', value: 4, icon: 'MA', color: 'bg-indigo-500' }
+          { label: 'Modules Active', value: activeModules, icon: 'MA', color: 'bg-indigo-500' }
         ]);
 
         setRecentActivities(sortedActivities);
@@ -106,7 +143,7 @@ const AdminDashboard = () => {
   if (loading) return <BlueLoader />;
   if (error) {
     return (
-      <div className="p-6 text-red-500">
+      <div className="p-4 sm:p-6 text-red-500">
         <h1 className="text-2xl font-bold mb-4 text-gray-900">Admin Dashboard</h1>
         <div className="bg-red-50 p-6 rounded-xl border border-red-100">
           <p className="font-bold">Error loading dashboard data:</p>
@@ -118,12 +155,12 @@ const AdminDashboard = () => {
   }
 
   return (
-    <div className="p-6">
+    <div className="p-4 sm:p-6">
       <h1 className="text-2xl font-bold mb-6">Admin Dashboard</h1>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-6 mb-8">
         {stats.map((stat, index) => (
-          <div key={index} className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center space-x-4">
+          <div key={index} className="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-gray-100 flex items-center space-x-4">
             <div className={`${stat.color} text-white p-3 rounded-lg text-sm font-bold`}>{stat.icon}</div>
             <div>
               <p className="text-sm text-gray-500 font-medium">{stat.label}</p>
@@ -138,7 +175,7 @@ const AdminDashboard = () => {
           <h2 className="text-lg font-bold mb-4">Recent Activities</h2>
           <div className="space-y-4">
             {recentActivities.map((activity, i) => (
-              <div key={i} className="flex items-center justify-between py-3 border-b border-gray-50 last:border-0">
+              <div key={i} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 py-3 border-b border-gray-50 last:border-0">
                 <div className="flex items-center space-x-3">
                   <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-sm font-bold text-blue-600">
                     {activity.profiles?.full_name?.split(' ').map((n) => n[0]).join('') || 'U'}
@@ -169,15 +206,20 @@ const AdminDashboard = () => {
 
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
           <h2 className="text-lg font-bold mb-4">Quick Links</h2>
-          <div className="grid grid-cols-2 gap-4">
-            <a href="/admin/approvals" className="p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors text-center">
-              <span className="block text-2xl mb-2">AQ</span>
-              <span className="text-sm font-medium">Pending Approvals</span>
-            </a>
-            <a href="/admin/ranking" className="p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors text-center">
-              <span className="block text-2xl mb-2">FR</span>
-              <span className="text-sm font-medium">Faculty Rankings</span>
-            </a>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {QUICK_LINKS.map((link) => (
+              <Link
+                key={link.to}
+                to={link.to}
+                className="group rounded-2xl border border-slate-200 bg-gradient-to-br from-white to-slate-50 p-5 hover:border-indigo-200 hover:shadow-md transition-all"
+              >
+                <div className="mb-4 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-100 text-indigo-700 group-hover:bg-indigo-600 group-hover:text-white transition-colors">
+                  <QuickLinkIcon icon={link.icon} />
+                </div>
+                <p className="text-base font-semibold text-slate-900">{link.title}</p>
+                <p className="mt-1 text-xs text-slate-500">{link.description}</p>
+              </Link>
+            ))}
           </div>
         </div>
       </div>
@@ -186,3 +228,6 @@ const AdminDashboard = () => {
 };
 
 export default AdminDashboard;
+
+
+

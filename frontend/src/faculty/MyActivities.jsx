@@ -59,11 +59,11 @@ const MyActivities = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
         <h2 className="text-2xl font-bold text-gray-800">My Activities</h2>
         <button
           onClick={() => navigate(`/faculty/add-activity?type=${activeTab}`)}
-          className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors"
+          className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors w-full sm:w-auto"
         >
           Add New Activity
         </button>
@@ -88,64 +88,66 @@ const MyActivities = () => {
       {error && <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title/Name</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Year</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {!loading && rows.map((row) => {
-              const entryId = getEntryId(row);
-              return (
-                <tr key={entryId}>
-                  <td className="px-6 py-4 text-sm text-gray-900">{getEntryTitle(row)}</td>
-                  <td className="px-6 py-4 text-sm text-gray-700">{getEntryYear(row)}</td>
-                  <td className="px-6 py-4">
-                    <span
-                      className={`rounded-full px-2 py-1 text-xs font-semibold ${
-                        row.status === 'APPROVED'
-                          ? 'bg-green-100 text-green-700'
-                          : row.status === 'REJECTED'
-                          ? 'bg-red-100 text-red-700'
-                          : 'bg-yellow-100 text-yellow-700'
-                      }`}
-                    >
-                      {row.status || 'PENDING'}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <button
-                      onClick={() => handleDelete(entryId)}
-                      className="text-red-600 hover:text-red-800 text-sm font-medium"
-                    >
-                      Delete
-                    </button>
+        <div className="overflow-x-auto">
+          <table className="min-w-[700px] w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title/Name</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Year</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {!loading && rows.map((row) => {
+                const entryId = getEntryId(row);
+                return (
+                  <tr key={entryId}>
+                    <td className="px-6 py-4 text-sm text-gray-900">{getEntryTitle(row)}</td>
+                    <td className="px-6 py-4 text-sm text-gray-700">{getEntryYear(row)}</td>
+                    <td className="px-6 py-4">
+                      <span
+                        className={`rounded-full px-2 py-1 text-xs font-semibold ${
+                          row.status === 'APPROVED'
+                            ? 'bg-green-100 text-green-700'
+                            : row.status === 'REJECTED'
+                            ? 'bg-red-100 text-red-700'
+                            : 'bg-yellow-100 text-yellow-700'
+                        }`}
+                      >
+                        {row.status || 'PENDING'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <button
+                        onClick={() => handleDelete(entryId)}
+                        className="text-red-600 hover:text-red-800 text-sm font-medium"
+                      >
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+
+              {!loading && rows.length === 0 && (
+                <tr>
+                  <td colSpan="4" className="px-6 py-12 text-center text-gray-500 italic">
+                    No activities recorded for this category yet.
                   </td>
                 </tr>
-              );
-            })}
+              )}
 
-            {!loading && rows.length === 0 && (
-              <tr>
-                <td colSpan="4" className="px-6 py-12 text-center text-gray-500 italic">
-                  No activities recorded for this category yet.
-                </td>
-              </tr>
-            )}
-
-            {loading && (
-              <tr>
-                <td colSpan="4" className="px-6 py-12 text-center text-gray-500 italic">
-                  Loading activities...
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+              {loading && (
+                <tr>
+                  <td colSpan="4" className="px-6 py-12 text-center text-gray-500 italic">
+                    Loading activities...
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

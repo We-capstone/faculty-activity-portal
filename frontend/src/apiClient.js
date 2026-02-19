@@ -9,9 +9,15 @@ function normalizePath(path) {
 function buildUrl(path, query) {
   const normalizedPath = normalizePath(path);
   const normalizedPrefix = normalizePath(API_PREFIX || '');
+  const pathAlreadyHasApiPrefix =
+    normalizedPath === '/api' ||
+    normalizedPath.startsWith('/api/') ||
+    normalizedPath === '/api/v1' ||
+    normalizedPath.startsWith('/api/v1/');
   const shouldPrefix =
     normalizedPrefix &&
     normalizedPrefix !== '/' &&
+    !pathAlreadyHasApiPrefix &&
     normalizedPath !== normalizedPrefix &&
     !normalizedPath.startsWith(`${normalizedPrefix}/`);
 

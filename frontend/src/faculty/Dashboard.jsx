@@ -84,33 +84,33 @@ const Dashboard = () => {
     <div className="space-y-8">
       {error && <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-6">
+        <div className="bg-white p-5 sm:p-6 rounded-xl shadow-sm border border-gray-100">
           <h3 className="text-gray-500 text-sm font-medium">Total Activities</h3>
           <p className="text-3xl font-bold mt-2">{loading ? '-' : stats.total}</p>
         </div>
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+        <div className="bg-white p-5 sm:p-6 rounded-xl shadow-sm border border-gray-100">
           <h3 className="text-gray-500 text-sm font-medium">Approved</h3>
           <p className="text-3xl font-bold mt-2 text-green-600">{loading ? '-' : stats.approved}</p>
         </div>
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+        <div className="bg-white p-5 sm:p-6 rounded-xl shadow-sm border border-gray-100">
           <h3 className="text-gray-500 text-sm font-medium">Pending Review</h3>
           <p className="text-3xl font-bold mt-2 text-yellow-600">{loading ? '-' : stats.pending}</p>
         </div>
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+        <div className="bg-white p-5 sm:p-6 rounded-xl shadow-sm border border-gray-100">
           <h3 className="text-gray-500 text-sm font-medium">Performance Score</h3>
           <p className="text-3xl font-bold mt-2 text-indigo-600">{loading ? '-' : stats.score}</p>
         </div>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 sm:p-8">
         <h2 className="text-lg font-bold mb-6">Quick Actions</h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
           {topModules.map((module) => (
             <Link
               key={module.id}
               to={`/faculty/add-activity?type=${module.id}`}
-              className="p-6 border border-gray-100 rounded-xl hover:shadow-md hover:border-indigo-100 transition-all text-center group"
+              className="p-5 sm:p-6 border border-gray-100 rounded-xl hover:shadow-md hover:border-indigo-100 transition-all text-center group"
             >
               <div className="bg-indigo-600 text-white w-12 h-12 rounded-lg flex items-center justify-center text-xl mx-auto mb-4 group-hover:scale-110 transition-transform">
                 +
@@ -121,8 +121,8 @@ const Dashboard = () => {
         </div>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8">
-        <div className="flex justify-between items-center mb-6">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 sm:p-8">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-6">
           <h2 className="text-lg font-bold">Recent Activities</h2>
           <Link to="/faculty/activities" className="text-indigo-600 text-sm font-medium hover:underline">
             View All
@@ -131,7 +131,7 @@ const Dashboard = () => {
 
         <div className="space-y-3">
           {activities.map((item) => (
-            <div key={`${item.module}-${getEntryId(item)}`} className="flex items-center justify-between border-b border-gray-100 pb-3 last:border-0 last:pb-0">
+            <div key={`${item.module}-${getEntryId(item)}`} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-gray-100 pb-3 last:border-0 last:pb-0">
               <div>
                 <p className="text-sm font-semibold text-gray-900">{getEntryTitle(item)}</p>
                 <p className="text-xs text-gray-500">{item.module}</p>

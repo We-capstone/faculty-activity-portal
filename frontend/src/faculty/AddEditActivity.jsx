@@ -40,8 +40,8 @@ const AddEditActivity = () => {
       conferences: {
         title: formData.title,
         conference_name: formData.sourceName,
-        conference_date: dateFromYear,
-        proceedings_details: formData.details
+        date: dateFromYear,
+        location: formData.details
       },
       books: {
         title: formData.title,
@@ -130,14 +130,14 @@ const AddEditActivity = () => {
   };
 
   return (
-    <div className="max-w-3xl mx-auto">
+    <div className="max-w-3xl mx-auto w-full">
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="p-6 border-b border-gray-100 bg-gray-50">
+        <div className="p-4 sm:p-6 border-b border-gray-100 bg-gray-50">
           <h2 className="text-xl font-bold text-gray-800">Add New Activity</h2>
           <p className="text-sm text-gray-500 mt-1">Submit activity details. New entries are created with PENDING status.</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-8 space-y-6">
+        <form onSubmit={handleSubmit} className="p-4 sm:p-8 space-y-6">
           {error && <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
           {success && <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">{success}</div>}
 
@@ -213,18 +213,18 @@ const AddEditActivity = () => {
             />
           </div>
 
-          <div className="pt-4 flex items-center justify-end space-x-4">
+          <div className="pt-4 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-3 sm:gap-4">
             <button
               type="button"
               onClick={() => navigate('/faculty/activities')}
-              className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+              className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors w-full sm:w-auto"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={submitting}
-              className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-60"
+              className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-60 w-full sm:w-auto"
             >
               {submitting ? 'Submitting...' : 'Submit Activity'}
             </button>

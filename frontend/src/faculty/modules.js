@@ -37,7 +37,7 @@ export function getEntryTitle(entry) {
 
 export function getEntryYear(entry) {
   if (entry.year) return entry.year;
-  const dateValue = entry.publication_date || entry.conference_date || entry.date || entry.created_at || entry.updated_at;
+  const dateValue = entry.publication_date || entry.date || entry.created_at || entry.updated_at;
   if (!dateValue) return '-';
   const parsed = new Date(dateValue);
   return Number.isNaN(parsed.getTime()) ? '-' : parsed.getFullYear();
