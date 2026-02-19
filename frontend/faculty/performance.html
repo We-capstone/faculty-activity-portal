@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Performance Report</title>
+<script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script defer src="faculty.js"></script>
+async function loadReport() {
+  const res = await fetch(`${BACKEND_URL}/faculty/report`, {
+    headers: await headers()
+  });
+  const data = await res.json();
+  report.textContent = JSON.stringify(data, null, 2);
+}
+window.onload = loadReport;
+</script>
+</head>
+
+<body class="bg-gray-100 min-h-screen">
+
+<!-- NAVBAR -->
+ <nav class="bg-slate-900 text-white px-6 py-4 flex items-center justify-between">
+  <h1 class="text-lg font-semibold">Faculty Portal</h1>
+  <div class="space-x-4">
+    <a href="dashboard.html" class="hover:text-blue-400">Dashboard</a>
+    <a href="activities.html" class="hover:text-blue-400">My Activities</a>
+    <a href="activity-form.html" class="hover:text-blue-400">Add Activity</a>
+    <a href="performance.html" class="hover:text-blue-400">Performance</a>
+    <button onclick="logout()" class="bg-red-600 px-3 py-1 rounded hover:bg-red-700">
+      Logout
+    </button>
+  </div>
+</nav>
+
+
+<div class="p-6 max-w-3xl mx-auto">
+  <div class="bg-white p-6 rounded-xl shadow">
+    <h2 class="text-xl font-semibold mb-4">My Performance Report</h2>
+    <pre id="report" class="bg-gray-100 p-4 rounded"></pre>
+  </div>
+</div>
+
+</body>
+</html>

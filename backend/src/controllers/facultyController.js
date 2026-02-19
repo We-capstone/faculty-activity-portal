@@ -1,76 +1,126 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabase = createClient(process.env.SUPABASE_URL,process.env.SUPABASE_SERVICE_ROLE_KEY);
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 
-// Map module → table name + primary key
+// Keep only expected keys and ignore undefined/empty values
+function filterAllowedFields(payload = {}, allowedFields = []) {
+  const safe = {};
+  for (const key of allowedFields) {
+    const value = payload[key];
+    if (value === undefined || value === null || value === '') continue;
+    safe[key] = value;
+  }
+  return safe;
+}
+
+// Map module -> table name + primary key
 const MODULE_TABLES = {
   journals: {
     table: 'journal_publications',
     pk: 'journal_id',
     allowedFields: [
-      'title', 'journal_name', 'author_position',
-      'volume', 'publication_date', 'paper_link',
-      'indexing_details', 'journal_quartile'
+      'title',
+      'journal_name',
+      'author_position',
+      'volume',
+      'publication_date',
+      'paper_link',
+      'indexing_details',
+      'journal_quartile'
     ]
   },
-
   conferences: {
     table: 'conference_publications',
     pk: 'conference_id',
-    allowedFields: ['title', 'conference_name', 'location', 'date']
+    allowedFields: ['title', 'conference_name', 'proceedings_details', 'conference_date']
   },
-
   books: {
     table: 'books',
     pk: 'book_id',
     allowedFields: ['title', 'publisher', 'isbn', 'year']
+  },
+  'book-chapters': {
+    table: 'book_chapters',
+    pk: 'chapter_id',
+    allowedFields: ['title', 'book_title', 'year', 'description']
+  },
+  book_chapters: {
+    table: 'book_chapters',
+    pk: 'chapter_id',
+    allowedFields: ['title', 'book_title', 'year', 'description']
+  },
+  patents: {
+    table: 'patents',
+    pk: 'patent_id',
+    allowedFields: ['title', 'patent_number', 'year', 'description']
+  },
+  'research-funding': {
+    table: 'research_funding',
+    pk: 'funding_id',
+    allowedFields: ['title', 'funding_agency', 'year', 'description']
+  },
+  research_funding: {
+    table: 'research_funding',
+    pk: 'funding_id',
+    allowedFields: ['title', 'funding_agency', 'year', 'description']
+  },
+  consultancy: {
+    table: 'consultancy',
+    pk: 'consultancy_id',
+    allowedFields: ['title', 'client_name', 'year', 'description']
+  },
+  'academic-service': {
+    table: 'academic_service',
+    pk: 'service_id',
+    allowedFields: ['title', 'service_role', 'year', 'description']
+  },
+  academic_service: {
+    table: 'academic_service',
+    pk: 'service_id',
+    allowedFields: ['title', 'service_role', 'year', 'description']
   }
 };
 
-
 // Helper to resolve module config
 function getModule(req) {
-  const module = req.params.module;
-  return MODULE_TABLES[module];
+  return MODULE_TABLES[req.params.module];
 }
 
 export const facultyController = {
-
-  // ➕ CREATE
+  // CREATE
   create: async (req, res) => {
-  try {
-    const config = getModule(req);
-    if (!config) return res.status(400).json({ error: 'Invalid module' });
+    try {
+      const config = getModule(req);
+      if (!config) return res.status(400).json({ error: 'Invalid module' });
 
-    const safeBody = filterAllowedFields(req.body, config.allowedFields);
+      const safeBody = filterAllowedFields(req.body, config.allowedFields);
 
-    const { data, error } = await supabase
-      .from(config.table)
-      .insert([{
-        ...safeBody,
-        profile_id: req.user.id,
-        status: 'PENDING'
-      }])
-      .select();
+      const { data, error } = await supabase
+        .from(config.table)
+        .insert([
+          {
+            ...safeBody,
+            profile_id: req.user.id,
+            status: 'PENDING'
+          }
+        ])
+        .select();
 
-    if (error) throw error;
+      if (error) throw error;
 
-    res.status(201).json(data[0]);
-  } catch (err) {
-    res.status(400).json({ error: err.message });
-  }
-},
+      res.status(201).json(data[0]);
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+    }
+  },
 
-
-  // 📄 LIST (Admin = all, Faculty = own)
+  // LIST (Admin = all, Faculty = own)
   getAll: async (req, res) => {
     try {
       const config = getModule(req);
       if (!config) return res.status(400).json({ error: 'Invalid module' });
 
-      let query = supabase
-        .from(config.table)
-        .select('*');
+      let query = supabase.from(config.table).select('*');
 
       if (req.user.role !== 'ADMIN') {
         query = query.eq('profile_id', req.user.id);
@@ -85,7 +135,7 @@ export const facultyController = {
     }
   },
 
-  // 🔍 GET SINGLE
+  // GET SINGLE
   getOne: async (req, res) => {
     try {
       const { id } = req.params;
@@ -107,7 +157,7 @@ export const facultyController = {
     }
   },
 
-  // ✏️ UPDATE
+  // UPDATE
   update: async (req, res) => {
     try {
       const { id } = req.params;
@@ -117,11 +167,7 @@ export const facultyController = {
       if (!config) return res.status(400).json({ error: 'Invalid module' });
 
       // Check ownership
-      const { data: existing } = await supabase
-        .from(config.table)
-        .select()
-        .eq(config.pk, id)
-        .single();
+      const { data: existing } = await supabase.from(config.table).select().eq(config.pk, id).single();
 
       if (!existing) return res.status(404).json({ error: 'Not found' });
 
@@ -141,11 +187,7 @@ export const facultyController = {
         delete updates.remarks;
       }
 
-      const { data, error } = await supabase
-        .from(config.table)
-        .update(updates)
-        .eq(config.pk, id)
-        .select();
+      const { data, error } = await supabase.from(config.table).update(updates).eq(config.pk, id).select();
 
       if (error) throw error;
 
@@ -155,17 +197,14 @@ export const facultyController = {
     }
   },
 
-  // ❌ DELETE
+  // DELETE
   delete: async (req, res) => {
     try {
       const { id } = req.params;
       const config = getModule(req);
       if (!config) return res.status(400).json({ error: 'Invalid module' });
 
-      let query = supabase
-        .from(config.table)
-        .delete()
-        .eq(config.pk, id);
+      let query = supabase.from(config.table).delete().eq(config.pk, id);
 
       if (req.user.role !== 'ADMIN') {
         query = query.eq('profile_id', req.user.id);
@@ -180,12 +219,12 @@ export const facultyController = {
     }
   },
 
-  // 📎 UPLOAD PROOF (stub for now)
+  // UPLOAD PROOF (stub for now)
   uploadProof: async (req, res) => {
     return res.json({ message: 'Proof upload endpoint working' });
   },
 
-  // 🧠 DUPLICATE VALIDATION (stub logic)
+  // DUPLICATE VALIDATION (stub logic)
   validateDuplicate: async (req, res) => {
     return res.json({
       duplicate: false,

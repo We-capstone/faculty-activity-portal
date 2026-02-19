@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>My Activities</title>
+<script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script defer src="faculty.js"></script>
+async function loadActivities() {
+  const res = await fetch(`${BACKEND_URL}/journals`, {
+    headers: await headers()
+  });
+  const data = await res.json();
+
+  document.getElementById("list").innerHTML =
+    data.map(a => `
+      <div class="bg-white p-5 rounded-xl shadow flex justify-between">
+        <div>
+          <h4 class="font-semibold">${a.title}</h4>
+          <p class="text-sm text-gray-500">${a.journal_name || ""}</p>
+        </div>
+        <span class="${
+          a.status === "APPROVED"
+            ? "text-green-600"
+            : "text-yellow-500"
+        }">${a.status}</span>
+      </div>
+    `).join("");
+}
+window.onload = loadActivities;
+</script>
+</head>
+
+<body class="bg-gray-100 min-h-screen">
+
+<!-- NAVBAR -->
+ <nav class="bg-slate-900 text-white px-6 py-4 flex items-center justify-between">
+  <h1 class="text-lg font-semibold">Faculty Portal</h1>
+  <div class="space-x-4">
+    <a href="dashboard.html" class="hover:text-blue-400">Dashboard</a>
+    <a href="activities.html" class="hover:text-blue-400">My Activities</a>
+    <a href="activity-form.html" class="hover:text-blue-400">Add Activity</a>
+    <a href="performance.html" class="hover:text-blue-400">Performance</a>
+    <button onclick="logout()" class="bg-red-600 px-3 py-1 rounded hover:bg-red-700">
+      Logout
+    </button>
+  </div>
+</nav>
+
+
+<div class="p-6 space-y-4">
+  <h2 class="text-xl font-semibold">My Activities</h2>
+  <div id="list" class="space-y-4"></div>
+</div>
+
+</body>
+</html>
