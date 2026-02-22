@@ -18,7 +18,7 @@ app.use(express.urlencoded({ extended: true }));
 
 // Mount Routes
 app.use('/api/journals', journalRoutes);
-app.use('/api/admin', adminRoutes); 
+// app.use('/api/admin', adminRoutes); //commented approval routes
 app.use("/api/faculty", facultyRoutes);
 app.use("/api/analytics", analyticsRoutes); // New Analytics Mount
 
