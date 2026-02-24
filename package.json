@@ -1,5 +1,8 @@
 {
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.18"
+  },
+  "dependencies": {
+    "multer": "^2.0.2"
   }
 }
