@@ -106,19 +106,21 @@ const AddEditActivity = () => {
       });
 
       if (formData.proofFile) {
-        const createdId = getEntryId(created);
-        if (createdId) {
-          const fileBody = new FormData();
-          fileBody.append('proof', formData.proofFile);
+  const createdId = getEntryId(created);
 
-          await apiRequest(`/faculty/${formData.type}/${createdId}/upload-proof`, {
-            method: 'POST',
-            token: session.access_token,
-            body: fileBody,
-            rawBody: true
-          });
-        }
-      }
+  if (createdId) {
+    const fileBody = new FormData();
+    fileBody.append('file', formData.proofFile);
+
+    await apiRequest(`/faculty/${formData.type}/${createdId}/proof`, {
+      method: 'POST',
+      token: session.access_token,
+      body: fileBody,
+      rawBody: true
+    });
+  }
+}
+
 
       setSuccess('Activity submitted successfully with status PENDING.');
       setTimeout(() => navigate('/faculty/activities'), 600);
