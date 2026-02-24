@@ -34,21 +34,6 @@ const MODULE_TABLES = {
     pk: 'conference_id',
     allowedFields: ['title', 'conference_name', 'proceedings_details', 'conference_date']
   },
-  books: {
-    table: 'books',
-    pk: 'book_id',
-    allowedFields: ['title', 'publisher', 'isbn', 'year']
-  },
-  'book-chapters': {
-    table: 'book_chapters',
-    pk: 'chapter_id',
-    allowedFields: ['title', 'book_title', 'year', 'description']
-  },
-  book_chapters: {
-    table: 'book_chapters',
-    pk: 'chapter_id',
-    allowedFields: ['title', 'book_title', 'year', 'description']
-  },
   patents: {
     table: 'patents',
     pk: 'patent_id',
@@ -59,27 +44,7 @@ const MODULE_TABLES = {
     pk: 'funding_id',
     allowedFields: ['title', 'funding_agency', 'year', 'description']
   },
-  research_funding: {
-    table: 'research_funding',
-    pk: 'funding_id',
-    allowedFields: ['title', 'funding_agency', 'year', 'description']
-  },
-  consultancy: {
-    table: 'consultancy',
-    pk: 'consultancy_id',
-    allowedFields: ['title', 'client_name', 'year', 'description']
-  },
-  'academic-service': {
-    table: 'academic_service',
-    pk: 'service_id',
-    allowedFields: ['title', 'service_role', 'year', 'description']
-  },
-  academic_service: {
-    table: 'academic_service',
-    pk: 'service_id',
-    allowedFields: ['title', 'service_role', 'year', 'description']
-  }
-};
+ };
 
 // Helper to resolve module config
 function getModule(req) {
@@ -221,8 +186,113 @@ export const facultyController = {
 
   // UPLOAD PROOF (stub for now)
   uploadProof: async (req, res) => {
-    return res.json({ message: 'Proof upload endpoint working' });
-  },
+  try {
+    const { module, id } = req.params;
+    const config = MODULE_TABLES[module];
+
+    if (!config) return res.status(400).json({ error: 'Invalid module' });
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+
+    // Verify record exists + ownership
+    const { data: existing, error: fetchError } = await supabase
+      .from(config.table)
+      .select('*')
+      .eq(config.pk, id)
+      .single();
+
+    if (fetchError || !existing) {
+      return res.status(404).json({ error: 'Record not found' });
+    }
+
+    if (existing.profile_id !== req.user.id && req.user.role !== 'ADMIN') {
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+
+    // Generate unique file path
+    const fileExt = req.file.originalname.split('.').pop();
+    const fileName = `${req.user.id}/${module}/${id}-${Date.now()}.${fileExt}`;
+
+    // Upload to Supabase Storage
+    const { error: uploadError } = await supabase.storage
+      .from('proofs')
+      .upload(fileName, req.file.buffer, {
+        contentType: req.file.mimetype,
+        upsert: true
+      });
+
+    if (uploadError) throw uploadError;
+
+    // Save path in DB
+    const { data, error: updateError } = await supabase
+      .from(config.table)
+      .update({ proof_path: fileName })
+      .eq(config.pk, id)
+      .select()
+      .single();
+
+    if (updateError) throw updateError;
+
+    // Create signed URL (secure)
+    const { data: urlData } = await supabase.storage
+      .from('proofs')
+      .createSignedUrl(fileName, 60 * 60); // 1 hour
+
+    res.json({
+      message: 'Proof uploaded',
+      proof_url: urlData?.signedUrl,
+      record: data
+    });
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+},
+
+// GET PROOF
+getProof: async (req, res) => {
+  try {
+    const { id } = req.params;
+    const config = getModule(req);
+    if (!config) return res.status(400).json({ error: 'Invalid module' });
+
+    // Fetch record
+    const { data, error } = await supabase
+      .from(config.table)
+      .select('proof_path, profile_id')
+      .eq(config.pk, id)
+      .single();
+
+    if (error || !data) {
+      return res.status(404).json({ error: 'Record not found' });
+    }
+
+    // Access control
+    const isOwner = data.profile_id === req.user.id;
+    const isAdmin = req.user.role === 'ADMIN';
+
+    if (!isOwner && !isAdmin) {
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+
+    if (!data.proof_path) {
+      return res.status(404).json({ error: 'No proof uploaded' });
+    }
+
+    // Generate signed URL
+    const { data: signedUrlData, error: urlError } = await supabase.storage
+      .from('proofs') // ← your bucket name
+      .createSignedUrl(data.proof_path, 60 * 5); // 5 minutes
+
+    if (urlError) throw urlError;
+
+    res.json({ url: signedUrlData.signedUrl });
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+},
+
+
 
   // DUPLICATE VALIDATION (stub logic)
   validateDuplicate: async (req, res) => {
