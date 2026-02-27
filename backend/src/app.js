@@ -6,6 +6,7 @@ import supabase from './config/supabase.js';
 import journalRoutes from './routes/journalRoutes.js';
 import facultyRoutes from "./routes/facultyRoutes.js";
 import analyticsRoutes from "./routes/analyticsRoutes.js";
+import orcidRoutes from "./routes/orcid.js";
 import chatbotRoutes from "./routes/chatbotRoutes.js"; // ✅ NEW
 
 dotenv.config();
@@ -21,6 +22,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/api/journals', journalRoutes);
 app.use("/api/faculty", facultyRoutes);
 app.use("/api/analytics", analyticsRoutes);
+app.use("/api/orcid", orcidRoutes);
 app.use("/api/chatbot", chatbotRoutes); // ✅ NEW
 
 // Database Health Check
