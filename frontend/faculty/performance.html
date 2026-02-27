@@ -1,20 +1,13 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>Performance Report</title>
-<script src="https://cdn.tailwindcss.com"></script>
+  <title>Performance Report</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script defer src="faculty.js"></script>
-async function loadReport() {
-  const res = await fetch(`${BACKEND_URL}/faculty/report`, {
-    headers: await headers()
-  });
-  const data = await res.json();
-  report.textContent = JSON.stringify(data, null, 2);
-}
-window.onload = loadReport;
-</script>
 </head>
+
 
 <body class="bg-gray-100 min-h-screen">
 
@@ -36,7 +29,28 @@ window.onload = loadReport;
 <div class="p-6 max-w-3xl mx-auto">
   <div class="bg-white p-6 rounded-xl shadow">
     <h2 class="text-xl font-semibold mb-4">My Performance Report</h2>
-    <pre id="report" class="bg-gray-100 p-4 rounded"></pre>
+    <div class="space-y-6">
+
+  <!-- Career Summary -->
+  <div class="bg-white p-6 rounded-xl shadow">
+    <h3 class="text-lg font-semibold mb-2">Career Summary</h3>
+    <div id="careerBox" class="text-gray-700"></div>
+  </div>
+
+  <!-- Annual Trend -->
+  <div class="bg-white p-6 rounded-xl shadow">
+    <h3 class="text-lg font-semibold mb-4">Yearly Performance Trend</h3>
+    <canvas id="annualChart" height="100"></canvas>
+  </div>
+
+  <!-- Contribution Mix -->
+  <div class="bg-white p-6 rounded-xl shadow">
+    <h3 class="text-lg font-semibold mb-4">Current Year Contribution Mix</h3>
+    <canvas id="mixChart" height="100"></canvas>
+  </div>
+
+</div>
+
   </div>
 </div>
 
