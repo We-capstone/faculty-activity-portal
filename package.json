@@ -3,6 +3,7 @@
     "@tailwindcss/postcss": "^4.1.18"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "multer": "^2.0.2"
   }
 }
