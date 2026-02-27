@@ -1,9 +1,10 @@
 import express from 'express';
 const router = express.Router();
-import { getFacultyStats, getAdminStats } from '../controllers/analyticsController.js';
-import { authenticate, isAdmin } from '../middleware/authMiddleware.js';
+import { getResearchStats } from '../controllers/analyticsController.js';
+import { authenticate } from '../middleware/authMiddleware.js';
 
-router.get('/faculty/stats', authenticate, getFacultyStats);
-router.get('/admin/stats', authenticate, isAdmin, getAdminStats);
+// Unified endpoint: The controller determines the scope (Admin vs Faculty) 
+// based on the JWT token attached by the authenticate middleware.
+router.get('/stats', authenticate, getResearchStats);
 
 export default router;

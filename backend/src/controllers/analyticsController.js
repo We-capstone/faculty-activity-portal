@@ -1,89 +1,99 @@
+import supabase from '../config/supabase.js';
 
-import { createClient } from '@supabase/supabase-js';
-
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
-// --- FACULTY ANALYTICS ---
-export const getFacultyStats = async (req, res) => {
+export const getResearchStats = async (req, res) => {
     try {
-        const profileId = req.user.id;
-
-        // 1. Career Totals (for Metric Cards)
-        const { data: career } = await supabase
-            .from('faculty_career_score')
-            .select('*')
-            .eq('profile_id', profileId)
+        const { role, id } = req.user;
+        // FIXED: Changed 'patent' to 'patents' to match your DB table name
+        const tables = ['journal_publications', 'conference_publications', 'patents', 'research_funding'];
+        
+        const { data: profile } = await supabase
+            .from('profiles')
+            .select('department')
+            .eq('id', id)
             .single();
 
-        // 2. Yearly Breakdown (for Trend & Mix Charts)
-        const { data: annual } = await supabase
-            .from('faculty_annual_score')
-            .select('*')
-            .eq('profile_id', profileId)
-            .order('year', { ascending: true });
+        const targetDept = role === 'ADMIN' ? null : profile?.department;
 
-        // 3. Current Year Detail (for Cap Progress Bars)
-        const currentYear = new Date().getFullYear();
-        const { data: currentYearData } = await supabase
-            .from('faculty_annual_score')
-            .select('journal_score, conference_score')
-            .eq('profile_id', profileId)
-            .eq('year', currentYear)
-            .single();
+        const statsPromises = tables.map(async (table) => {
+            // Mapping specific IDs based on your schema
+            const idCol = table === 'research_funding' ? 'funding_id' : 
+                          table === 'journal_publications' ? 'journal_id' :
+                          table === 'conference_publications' ? 'conference_id' : 
+                          'patent_id';
 
-        res.json({ career, annual, currentYear: currentYearData || { journal_score: 0, conference_score: 0 } });
+            let query = supabase
+                .from(table)
+                .select(`${idCol}, created_at, profiles:profile_id!inner(department)`);
+            
+            if (targetDept) {
+                query = query.eq('profiles.department', targetDept);
+            }
+
+            const { data, error } = await query;
+            if (error) console.error(`Error in ${table}:`, error.message);
+            
+            return { table, data: data || [] };
+        });
+
+        const results = await Promise.all(statsPromises);
+        const processedData = processResearchData(results);
+
+        res.json({
+            ...processedData,
+            userContext: { role, scope: targetDept || 'Institutional (All Departments)' }
+        });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 };
 
-// --- ADMIN ANALYTICS ---
-// --- ADMIN ANALYTICS ---
-export const getAdminStats = async (req, res) => {
-    try {
-        // 1. Fetch scores from the view
-        const { data: scores, error: scoreErr } = await supabase
-            .from('faculty_career_score')
-            .select('*')
-            .order('career_score', { ascending: false });
+const processResearchData = (results) => {
+    const yearlyGrowth = {}; 
+    const deptVolume = {};   
+    const heatmapData = [];
+    results.forEach(({ table, data }) => {
+        data.forEach(item => {
+            const year = item.created_at ? new Date(item.created_at).getFullYear() : 2026;
+            const dept = item.profiles?.department || 'Unassigned';
 
-        // 2. Fetch all profiles
-        const { data: profiles, error: profErr } = await supabase
-            .from('profiles')
-            .select('id, full_name, department');
+            // Category Mapping: Simplified to match your specific frontend keys
+            let key;
+            if (table === 'journal_publications') key = 'journals';
+            else if (table === 'conference_publications') key = 'conferences';
+            else if (table === 'patents') key = 'patents';
+            else if (table === 'research_funding') key = 'funding';
 
-        if (scoreErr || profErr) throw scoreErr || profErr;
+            if (!yearlyGrowth[year]) {
+                yearlyGrowth[year] = { year, journals: 0, conferences: 0, patents: 0, funding: 0, total: 0 };
+            }
+            if (key) {
+                yearlyGrowth[year][key]++;
+                yearlyGrowth[year].total++;
+            }
 
-        // 3. Merge data in Node.js
-        const rawData = scores.map(score => {
-            const profile = profiles.find(p => p.id === score.profile_id);
-            return {
-                ...score,
-                profiles: profile || { full_name: 'Unknown', department: 'Unassigned' }
-            };
+            if (!deptVolume[dept]) {
+                deptVolume[dept] = { department: dept, journals: 0, conferences: 0, patents: 0, funding: 0, total: 0 };
+            }
+            if (key) {
+                deptVolume[dept][key]++;
+                deptVolume[dept].total++;
+            }
+
+            let cell = heatmapData.find(d => d.dept === dept && d.year === year);
+            if (!cell) {
+                cell = { dept, year, count: 0 };
+                heatmapData.push(cell);
+            }
+            cell.count++;
         });
 
-        // 4. Group by Department (Same as before)
-        const departmentMap = rawData.reduce((acc, curr) => {
-            const deptName = curr.profiles.department || "Unassigned";
-            acc[deptName] = (acc[deptName] || 0) + parseFloat(curr.career_score);
-            return acc;
-        }, {});
+        
+        
+    });
 
-        const departmentLeaderboard = Object.keys(departmentMap).map(dept => ({
-            department: dept,
-            total_score: parseFloat(departmentMap[dept].toFixed(2))
-        }));
-
-        // 5. Global Status Funnel (Keep your existing logic)
-        const tables = ['journal_publications', 'conference_publications', 'patents', 'research_funding'];
-        const statusCounts = { APPROVED: 0, PENDING: 0, REJECTED: 0 };
-        for (const table of tables) {
-            const { data } = await supabase.from(table).select('status');
-            data?.forEach(row => { if (statusCounts[row.status] !== undefined) statusCounts[row.status]++; });
-        }
-
-        res.json({ departmentLeaderboard, individualLeaderboard: rawData, statusCounts });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
+    return {
+        yearlyGrowth: Object.values(yearlyGrowth).sort((a, b) => a.year - b.year),
+        deptVolume: Object.values(deptVolume).sort((a, b) => b.total - a.total),
+        heatmapData
+    };
 };
