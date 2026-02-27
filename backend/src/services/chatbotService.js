@@ -7,7 +7,9 @@ export async function handleChatbotQuery(user, question) {
 
   const prompt = buildPrompt(user, question);
 
-  const sql = await generateSQL(prompt);
+  const sql = await generateSQL(prompt, user);
+
+  console.log("Generated SQL:", sql);
 
   if (sql.trim() === "ACCESS NOT ALLOWED") {
   return {
@@ -18,7 +20,10 @@ export async function handleChatbotQuery(user, question) {
 
   validateSQL(sql);
 
+  
+
   const result = await executeSQL(sql);
+  console.log("Query Result:", result); 
 
   return {
     sql,
