@@ -41,6 +41,9 @@
     'Lecturer'
   ];
 
+  const ORCID_REGEX = /^\d{4}-\d{4}-\d{4}-\d{3}[\dX]$/;
+
+
   const Auth = () => {
     const [isLogin, setIsLogin] = useState(true);
     const [email, setEmail] = useState('');
@@ -52,7 +55,7 @@
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState('');
     const [errorMessage, setErrorMessage] = useState('');
-    const [googleScholar, setGoogleScholar] = useState('');
+    const [orcidId, setOrcidId] = useState('');
 
     const navigate = useNavigate();
 
@@ -82,15 +85,16 @@
             navigate('/faculty');
           }
         } else {
-          if (googleScholar && !googleScholar.includes('scholar.google')) {
-            throw new Error('Enter a valid Google Scholar link');
+          if (orcidId && !ORCID_REGEX.test(orcidId)) {
+            throw new Error('Enter a valid ORCID iD (e.g., 0000-0002-1825-0097)');
           }
+
 
           const { error } = await supabase.auth.signUp({
             email,
             password,
             options: {
-              data: { full_name: fullName, department, designation, role, google_scholar: googleScholar }
+              data: { full_name: fullName, department, designation, role, orcid_id: orcidId }
             }
           });
           if (error) throw error;
@@ -176,14 +180,14 @@
                     onChange={(e) => setFullName(e.target.value)}
                   /><div>
                     <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500">
-                      Google Scholar Profile Link
+                      ORCID ID
                     </label>
                     <input
-                      type="url"
-                      placeholder="https://scholar.google.com/..."
+                      type="text"
+                      placeholder="0000-0002-1825-0097"
                       className="mt-2 block w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none transition focus:border-indigo-500"
-                      value={googleScholar}
-                      onChange={(e) => setGoogleScholar(e.target.value)}
+                      value={orcidId}
+                      onChange={(e) => setOrcidId(e.target.value)}
                     />
                   </div>  
                 </div>              
