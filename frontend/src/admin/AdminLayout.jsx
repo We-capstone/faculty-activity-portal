@@ -74,7 +74,6 @@ const AdminLayout = () => {
 
   const navItems = [
     { name: 'Dashboard', path: '/admin' },
-    { name: 'Approval Queue', path: '/admin/approvals' },
     { name: 'Faculty Ranking', path: '/admin/ranking' },
     { name: 'Department Analytics', path: '/admin/analytics' },
   ];

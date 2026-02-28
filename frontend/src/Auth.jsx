@@ -119,7 +119,7 @@
                 <p className="text-xs uppercase tracking-[0.25em] text-blue-200">Faculty Activity Portal</p>
                 <h1 className="mt-5 text-4xl font-semibold leading-tight">Track research, publish faster, stay approval-ready.</h1>
                 <p className="mt-5 max-w-sm text-sm text-slate-200/90">
-                  One workspace for faculty submissions and admin approvals with clean scoring visibility.
+                  One workspace for faculty submissions and admin insights with clean scoring visibility.
                 </p>
               </div>
               <div></div>
