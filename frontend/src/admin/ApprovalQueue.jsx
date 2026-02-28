@@ -97,14 +97,12 @@ const ApprovalQueue = () => {
       };
 
       if (statusFilter === 'all') {
-        const requests = STATUS_OPTIONS.map((status) =>
-          apiRequest(
-            filter === 'all'
-              ? `/admin/approvals?status=${status}`
-              : `/admin/approvals?module=${filter}&status=${status}`,
-            { token: session.access_token }
-          )
-        );
+        const requests = STATUS_OPTIONS.map((status) => {
+          const baseUrl = filter === 'all'
+            ? `/admin/approvals?status=${status}`
+            : `/admin/approvals?module=${filter}&status=${status}`;
+          return apiRequest(baseUrl, { token: session.access_token });
+        });
 
         const [pendingData, approvedData, rejectedData] = await Promise.all(requests);
         setApprovalItems([
@@ -113,13 +111,11 @@ const ApprovalQueue = () => {
           ...mapResults(rejectedData, 'REJECTED')
         ]);
       } else {
-        const data = await apiRequest(
-          filter === 'all'
-            ? `/admin/approvals?status=${statusFilter}`
-            : `/admin/approvals?module=${filter}&status=${statusFilter}`,
-          { token: session.access_token }
-        );
-
+        const baseUrl = filter === 'all'
+          ? `/admin/approvals?status=${statusFilter}`
+          : `/admin/approvals?module=${filter}&status=${statusFilter}`;
+        
+        const data = await apiRequest(baseUrl, { token: session.access_token });
         setApprovalItems(mapResults(data, statusFilter));
       }
     } catch (err) {

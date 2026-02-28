@@ -10,21 +10,33 @@ const TABLE_MAP = {
 
 export const getApprovals = async (req, res) => {
   try {
-    const { module, status = 'PENDING' } = req.query;
+    const { module, status = 'PENDING', search } = req.query;
 
     // Force relationship to use 'profile_id' to avoid the "more than one relationship" error
     const selectQuery = `*, profiles!profile_id(full_name, department)`;
 
+    // Build filter conditions
+    const filters = {};
+    if (status) filters.status = status;
+    
     // 1. If a specific module (e.g., journals) is requested
     if (module) {
       const tableName = TABLE_MAP[module];
       if (!tableName) return res.status(400).json({ error: 'Invalid module name' });
 
-      const { data, error } = await supabase
+      let query = supabase
         .from(tableName)
         .select(selectQuery)
-        .eq('status', status) // Filter by status (defaults to PENDING)
+        .eq('status', status)
         .order('created_at', { ascending: false });
+
+      // Add search filter for faculty name
+      if (search) {
+        // Use ilike for case-insensitive search on profile's full_name
+        query = query.ilike('profiles.full_name', `%${search}%`);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
       return res.status(200).json(data);
@@ -34,11 +46,18 @@ export const getApprovals = async (req, res) => {
     const modules = Object.keys(TABLE_MAP);
     const results = await Promise.all(
       modules.map(async (key) => {
-        const { data, error } = await supabase
+        let query = supabase
           .from(TABLE_MAP[key])
           .select(selectQuery)
           .eq('status', status);
-          
+
+        // Add search filter for faculty name
+        if (search) {
+          query = query.ilike('profiles.full_name', `%${search}%`);
+        }
+
+        const { data, error } = await query;
+        
         if (error) console.error(`Error fetching ${key}:`, error.message);
         
         return { 

@@ -14,7 +14,7 @@ router.use(isAdmin);
 // GET /admin/approvals (All modules)
 // GET /admin/approvals?module=journals (Specific module)
 // GET /admin/approvals?status=APPROVED (History view)
-// router.get('/approvals', getApprovals);
-// router.patch('/:module/:id/status', handleStatusUpdate);
+router.get('/approvals', getApprovals);
+router.patch('/:module/:id/status', handleStatusUpdate);
 
 export default router;

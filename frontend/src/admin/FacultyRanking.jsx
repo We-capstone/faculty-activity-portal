@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { supabase } from '../supabase';
 import { apiRequest } from '../apiClient';
 import BlueLoader from '../components/BlueLoader';
@@ -18,6 +18,7 @@ const FacultyRanking = () => {
   const [rankings, setRankings] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     const fetchRankings = async () => {
@@ -126,19 +127,34 @@ const FacultyRanking = () => {
     return () => clearInterval(interval);
   }, []);
 
-  const totalPages = Math.max(1, Math.ceil(rankings.length / PAGE_SIZE));
+  // Filter rankings based on search query
+  const filteredRankings = useMemo(() => {
+    if (!searchQuery.trim()) return rankings;
+    const query = searchQuery.toLowerCase().trim();
+    return rankings.filter(faculty => 
+      faculty.name.toLowerCase().includes(query) ||
+      faculty.department.toLowerCase().includes(query)
+    );
+  }, [rankings, searchQuery]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredRankings.length / PAGE_SIZE));
   const safeCurrentPage = Math.min(currentPage, totalPages);
   const pageStart = (safeCurrentPage - 1) * PAGE_SIZE;
-  const paginatedRankings = rankings.slice(pageStart, pageStart + PAGE_SIZE);
-  const totalFaculty = rankings.length;
+  const paginatedRankings = filteredRankings.slice(pageStart, pageStart + PAGE_SIZE);
+  const totalFaculty = filteredRankings.length;
   const averageScore = totalFaculty
-    ? rankings.reduce((sum, row) => sum + Number(row.score || 0), 0) / totalFaculty
+    ? filteredRankings.reduce((sum, row) => sum + Number(row.score || 0), 0) / totalFaculty
     : 0;
-  const topFaculty = rankings[0];
+  const topFaculty = filteredRankings[0];
+
+  // Reset to page 1 when search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
 
   const downloadReport = () => {
     const headers = ['Rank', 'Name', 'Department', 'Publications', 'Grants', 'Total Score'];
-    const csvData = rankings.map((r) => [r.rank, `"${r.name}"`, `"${r.department}"`, r.publications, r.grants, r.score].join(','));
+    const csvData = filteredRankings.map((r) => [r.rank, `"${r.name}"`, `"${r.department}"`, r.publications, r.grants, r.score].join(','));
     const csvContent = [headers.join(','), ...csvData].join('\n');
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -184,6 +200,42 @@ const FacultyRanking = () => {
           <p className="text-lg font-bold text-gray-900 mt-2 truncate">{topFaculty?.name || 'N/A'}</p>
           <p className="text-sm text-gray-500">{topFaculty ? `${topFaculty.score} score` : 'No data yet'}</p>
         </div>
+      </div>
+
+      {/* Search Bar */}
+      <div className="mb-6">
+        <div className="relative max-w-md">
+          <input
+            type="text"
+            placeholder="Search by faculty name or department..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 pl-10 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+          <svg 
+            className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400"
+            fill="none" 
+            viewBox="0 0 24 24" 
+            stroke="currentColor"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+            >
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          )}
+        </div>
+        {searchQuery && (
+          <p className="text-sm text-gray-500 mt-2">
+            Showing {filteredRankings.length} result{filteredRankings.length !== 1 ? 's' : ''} for "{searchQuery}"
+          </p>
+        )}
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
@@ -233,12 +285,16 @@ const FacultyRanking = () => {
             </tbody>
           </table>
         </div>
-        {rankings.length === 0 && <div className="p-12 text-center text-gray-500">No faculty data found in backend.</div>}
+        {filteredRankings.length === 0 && (
+          <div className="p-12 text-center text-gray-500">
+            {searchQuery ? `No faculty found matching "${searchQuery}"` : 'No faculty data found in backend.'}
+          </div>
+        )}
 
-        {rankings.length > 0 && (
+        {filteredRankings.length > 0 && (
           <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-4 border-t border-gray-100 bg-gray-50">
             <p className="text-sm text-gray-500">
-              Showing {pageStart + 1} to {Math.min(pageStart + PAGE_SIZE, rankings.length)} of {rankings.length} records
+              Showing {pageStart + 1} to {Math.min(pageStart + PAGE_SIZE, filteredRankings.length)} of {filteredRankings.length} records
             </p>
             <div className="flex items-center gap-2">
               <button

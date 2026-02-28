@@ -8,13 +8,18 @@ import facultyRoutes from "./routes/facultyRoutes.js";
 import analyticsRoutes from "./routes/analyticsRoutes.js";
 import orcidRoutes from "./routes/orcid.js";
 import chatbotRoutes from "./routes/chatbotRoutes.js"; // ✅ NEW
+import adminRoutes from "./routes/adminRoutes.js"; // ✅ Admin routes
 
 dotenv.config();
 
 const app = express();
 
-// Global Middleware
-app.use(cors());
+// CORS configuration - allow requests from frontend
+app.use(cors({
+  origin: ['http://localhost:5173', 'http://localhost:3000', 'http://127.0.0.1:5173', 'http://127.0.0.1:3000'],
+  credentials: true
+}));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -24,6 +29,7 @@ app.use("/api/faculty", facultyRoutes);
 app.use("/api/analytics", analyticsRoutes);
 app.use("/api/orcid", orcidRoutes);
 app.use("/api/chatbot", chatbotRoutes); // ✅ NEW
+app.use("/api/admin", adminRoutes); // ✅ Admin routes
 
 // Database Health Check
 (async () => {

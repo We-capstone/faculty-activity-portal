@@ -12,12 +12,13 @@ router.put('/:module/:id', authenticate, facultyController.update);
 router.delete('/:module/:id', authenticate, facultyController.delete);
 
 //router.post('/:module/:id/upload-proof', authenticate, facultyController.uploadProof);
-router.post(
+/* router.post(
   '/:module/:id/proof',
   authenticate,
   upload.single('file'),
   facultyController.uploadProof
-);
+); */
+
 router.get(
   '/:module/:id/proof',
   authenticate,
