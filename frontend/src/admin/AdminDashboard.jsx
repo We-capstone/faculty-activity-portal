@@ -4,49 +4,29 @@ import { supabase } from '../supabase';
 import { apiRequest } from '../apiClient';
 import BlueLoader from '../components/BlueLoader';
 
-const MODULE_LABELS = {
-  journals: 'Journal Publication',
-  conferences: 'Conference Publication',
-  patents: 'Patent',
-  research_funding: 'Research Grant'
+const toNumber = (value) => {
+  const num = Number(value);
+  return Number.isFinite(num) ? num : 0;
 };
 
-const flattenApprovalPayload = (payload, status) =>
-  (payload || []).flatMap((mod) =>
-    (mod.entries || []).map((entry) => ({
-      ...entry,
-      status,
-      module: mod.module,
-      type: MODULE_LABELS[mod.module] || mod.module
-    }))
-  );
+const normalizeRole = (role) => (role || '').toString().trim().toUpperCase();
+const isFacultyRole = (role) => normalizeRole(role) !== 'ADMIN';
 
 const QUICK_LINKS = [
   {
-    to: '/admin/approvals',
-    title: 'Pending Approvals',
-    description: 'Review and moderate faculty submissions',
-    icon: 'approvals'
-  },
-  {
     to: '/admin/ranking',
     title: 'Faculty Rankings',
-    description: 'Track department-wise research performance',
+    description: 'View faculty activity leaderboard',
     icon: 'ranking'
+  },
+  {
+    to: '/admin/analytics',
+    title: 'Department Analytics',
+    description: 'Compare department research output over time',
+    icon: 'analytics'
   }
 ];
 const QuickLinkIcon = ({ icon }) => {
-  if (icon === 'approvals') {
-    return (
-      <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5" stroke="currentColor" strokeWidth="1.8">
-        <rect x="5" y="3" width="14" height="18" rx="2.5" />
-        <path d="M9 3.5h6" strokeLinecap="round" />
-        <path d="M8.5 10h7M8.5 14h4" strokeLinecap="round" />
-        <path d="m13.3 16.3 1.6 1.6 3-3" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    );
-  }
-
   return (
     <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5" stroke="currentColor" strokeWidth="1.8">
       <path d="M4 20h16" strokeLinecap="round" />
@@ -58,7 +38,7 @@ const QuickLinkIcon = ({ icon }) => {
 };
 const AdminDashboard = () => {
   const [stats, setStats] = useState([]);
-  const [recentActivities, setRecentActivities] = useState([]);
+  const [topDepartments, setTopDepartments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -74,58 +54,41 @@ const AdminDashboard = () => {
           return;
         }
 
-        console.info('[AdminDashboard] Fetching analytics and approvals from backend APIs');
-
-        const [adminStats, pendingPayload, approvedPayload, rejectedPayload, profilesResponse] = await Promise.all([
-          apiRequest('/analytics/admin/stats', { token: session.access_token }),
-          apiRequest('/admin/approvals?status=PENDING', { token: session.access_token }),
-          apiRequest('/admin/approvals?status=APPROVED', { token: session.access_token }),
-          apiRequest('/admin/approvals?status=REJECTED', { token: session.access_token }),
-          supabase.from('profiles').select('id, role')
+        const [analyticsPayload, profilesResponse] = await Promise.all([
+          apiRequest('/analytics/stats', { token: session.access_token }),
+          supabase.from('profiles').select('id, role, department')
         ]);
 
-        const statusCounts = adminStats?.statusCounts || { APPROVED: 0, PENDING: 0, REJECTED: 0 };
-        const totalSubmissions = (statusCounts.APPROVED || 0) + (statusCounts.PENDING || 0) + (statusCounts.REJECTED || 0);
-        const pendingCount = statusCounts.PENDING || 0;
         const profiles = Array.isArray(profilesResponse?.data) ? profilesResponse.data : [];
+        const facultyCount = profiles.filter((profile) => isFacultyRole(profile?.role)).length;
 
-        const normalizeRole = (role) => (role || '').toString().trim().toUpperCase();
-        const profileFacultyCount = profiles.filter((profile) => {
-          const role = normalizeRole(profile?.role);
-          return !role || role === 'FACULTY';
-        }).length;
+        const deptVolume = Array.isArray(analyticsPayload?.deptVolume) ? analyticsPayload.deptVolume : [];
+        const yearlyGrowth = Array.isArray(analyticsPayload?.yearlyGrowth) ? analyticsPayload.yearlyGrowth : [];
 
-        const leaderboardFacultyCount = Array.isArray(adminStats?.individualLeaderboard)
-          ? adminStats.individualLeaderboard.length
-          : 0;
-
-        const approvalFacultyCount = new Set(
-          [...(pendingPayload || []), ...(approvedPayload || []), ...(rejectedPayload || [])].flatMap((bucket) =>
-            (bucket?.entries || []).map((entry) => entry?.profile_id).filter(Boolean)
-          )
-        ).size;
-
-        const facultyCount = Math.max(profileFacultyCount, leaderboardFacultyCount, approvalFacultyCount);
-
-        const allActivities = [
-          ...flattenApprovalPayload(pendingPayload, 'PENDING'),
-          ...flattenApprovalPayload(approvedPayload, 'APPROVED'),
-          ...flattenApprovalPayload(rejectedPayload, 'REJECTED')
-        ];
-        const activeModules = new Set(allActivities.map((item) => item.module).filter(Boolean)).size;
-
-        const sortedActivities = allActivities
-          .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))
-          .slice(0, 5);
+        const totalSubmissions = deptVolume.reduce((sum, row) => sum + toNumber(row?.total), 0);
+        const activeDepartments = deptVolume.length;
+        const moduleTotals = {
+          journals: 0,
+          conferences: 0,
+          patents: 0,
+          funding: 0
+        };
+        deptVolume.forEach((row) => {
+          moduleTotals.journals += toNumber(row?.journals);
+          moduleTotals.conferences += toNumber(row?.conferences);
+          moduleTotals.patents += toNumber(row?.patents);
+          moduleTotals.funding += toNumber(row?.funding);
+        });
+        const activeModules = Object.values(moduleTotals).filter((v) => v > 0).length;
 
         setStats([
           { label: 'Total Faculty', value: facultyCount, icon: 'TF', color: 'bg-blue-500' },
-          { label: 'Pending Approvals', value: pendingCount, icon: 'PA', color: 'bg-yellow-500' },
           { label: 'Total Submissions', value: totalSubmissions, icon: 'TS', color: 'bg-green-500' },
-          { label: 'Modules Active', value: activeModules, icon: 'MA', color: 'bg-indigo-500' }
+          { label: 'Active Departments', value: activeDepartments, icon: 'AD', color: 'bg-indigo-500' },
+          { label: 'Active Modules', value: activeModules, icon: 'AM', color: 'bg-slate-700' }
         ]);
 
-        setRecentActivities(sortedActivities);
+        setTopDepartments(deptVolume.slice(0, 5));
         setError(null);
       } catch (err) {
         console.error('[AdminDashboard] API failure:', err);
@@ -172,35 +135,20 @@ const AdminDashboard = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-          <h2 className="text-lg font-bold mb-4">Recent Activities</h2>
+          <h2 className="text-lg font-bold mb-4">Top Departments</h2>
           <div className="space-y-4">
-            {recentActivities.map((activity, i) => (
-              <div key={i} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 py-3 border-b border-gray-50 last:border-0">
-                <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-sm font-bold text-blue-600">
-                    {activity.profiles?.full_name?.split(' ').map((n) => n[0]).join('') || 'U'}
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold">
-                      {activity.profiles?.full_name || 'Someone'} submitted a {activity.type}
-                    </p>
-                    <p className="text-xs text-gray-400">{new Date(activity.created_at).toLocaleString()}</p>
-                  </div>
+            {topDepartments.map((dept, i) => (
+              <div key={`${dept.department}-${i}`} className="flex items-center justify-between gap-4 py-3 border-b border-gray-50 last:border-0">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-gray-900 truncate">{dept.department || 'Unassigned'}</p>
+                  <p className="text-xs text-gray-400">Total submissions</p>
                 </div>
-                <span
-                  className={`text-xs font-medium px-2 py-1 rounded-full ${
-                    activity.status === 'APPROVED'
-                      ? 'bg-green-100 text-green-700'
-                      : activity.status === 'REJECTED'
-                      ? 'bg-red-100 text-red-700'
-                      : 'bg-yellow-100 text-yellow-700'
-                  }`}
-                >
-                  {activity.status}
+                <span className="shrink-0 inline-flex items-center rounded-full bg-blue-50 px-3 py-1 text-blue-700 font-bold">
+                  {toNumber(dept.total)}
                 </span>
               </div>
             ))}
-            {recentActivities.length === 0 && <p className="text-center text-gray-500 py-4">No recent activities</p>}
+            {topDepartments.length === 0 && <p className="text-center text-gray-500 py-4">No department data available</p>}
           </div>
         </div>
 

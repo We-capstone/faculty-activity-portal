@@ -1,122 +1,85 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../supabase';
-import { apiRequest } from '../apiClient';
 import BlueLoader from '../components/BlueLoader';
 
-const PAGE_SIZE = 5;
+const PAGE_SIZE = 8;
 
-const getProfileId = (entry) => entry.profile_id || entry.profiles?.id;
 const normalizeRole = (role) => (role || '').toString().trim().toUpperCase();
 const isFacultyRole = (role) => normalizeRole(role) !== 'ADMIN';
-const formatScore = (value) => {
-  const num = Number(value || 0);
-  if (Number.isNaN(num)) return '0';
-  return num.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+
+const toNumber = (value) => {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : 0;
 };
 
 const FacultyRanking = () => {
-  const [rankings, setRankings] = useState([]);
+  const [rows, setRows] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     const fetchRankings = async () => {
       setLoading(true);
+      setError('');
       try {
         const {
           data: { session }
         } = await supabase.auth.getSession();
-        if (!session) return;
+        if (!session) {
+          setRows([]);
+          return;
+        }
 
-        const [analyticsPayload, approvedPayload, profilesResponse] = await Promise.all([
-          apiRequest('/analytics/admin/stats', {
-            token: session.access_token
-          }),
-          apiRequest('/admin/approvals?status=APPROVED', {
-            token: session.access_token
-          }),
-          supabase.from('profiles').select('id, full_name, department, role')
-        ]);
+        const [profilesResponse, journalsResponse, conferencesResponse, patentsResponse, fundingResponse] =
+          await Promise.all([
+            supabase.from('profiles').select('id, full_name, department, role'),
+            supabase.from('journal_publications').select('profile_id'),
+            supabase.from('conference_publications').select('profile_id'),
+            supabase.from('patents').select('profile_id'),
+            supabase.from('research_funding').select('profile_id')
+          ]);
 
-        const profiles = (profilesResponse?.data || []).filter((profile) => isFacultyRole(profile?.role));
-        const leaderboardRows = analyticsPayload?.individualLeaderboard || [];
-        const scoreByProfileId = new Map();
-        leaderboardRows.forEach((row) => {
-          scoreByProfileId.set(row.profile_id, Number(row.career_score || 0));
-        });
+        const profiles = (profilesResponse?.data || []).filter((profile) => profile?.id && isFacultyRole(profile?.role));
 
-        const facultyMap = new Map();
+        const counts = new Map();
+        const bump = (profileId, field) => {
+          if (!profileId) return;
+          const current = counts.get(profileId) || { publications: 0, patents: 0, grants: 0, total: 0 };
+          current[field] += 1;
+          current.total += 1;
+          counts.set(profileId, current);
+        };
 
-        profiles.forEach((profile) => {
-          if (!profile?.id) return;
-          facultyMap.set(profile.id, {
+        (journalsResponse?.data || []).forEach((r) => bump(r.profile_id, 'publications'));
+        (conferencesResponse?.data || []).forEach((r) => bump(r.profile_id, 'publications'));
+        (patentsResponse?.data || []).forEach((r) => bump(r.profile_id, 'patents'));
+        (fundingResponse?.data || []).forEach((r) => bump(r.profile_id, 'grants'));
+
+        const merged = profiles.map((profile) => {
+          const profileCounts = counts.get(profile.id) || { publications: 0, patents: 0, grants: 0, total: 0 };
+          return {
             profileId: profile.id,
             name: profile.full_name || 'Unknown',
             department: profile.department || 'Unassigned',
-            publications: 0,
-            grants: 0,
-            score: scoreByProfileId.get(profile.id) || 0
-          });
+            publications: toNumber(profileCounts.publications),
+            patents: toNumber(profileCounts.patents),
+            grants: toNumber(profileCounts.grants),
+            total: toNumber(profileCounts.total)
+          };
         });
 
-        leaderboardRows.forEach((row) => {
-          const profileId = row.profile_id;
-          if (!profileId) return;
-          const existing = facultyMap.get(profileId);
-          facultyMap.set(profileId, {
-            profileId,
-            name: existing?.name || row?.profiles?.full_name || 'Unknown',
-            department: existing?.department || row?.profiles?.department || 'Unassigned',
-            publications: existing?.publications || 0,
-            grants: existing?.grants || 0,
-            score: Number(row.career_score || 0)
-          });
+        merged.sort((a, b) => {
+          if (b.total !== a.total) return b.total - a.total;
+          return a.name.localeCompare(b.name);
         });
 
-        (approvedPayload || []).forEach((bucket) => {
-          const module = bucket.module;
-          (bucket.entries || []).forEach((entry) => {
-            const profileId = getProfileId(entry);
-            if (!profileId) return;
-
-            if (!facultyMap.has(profileId)) {
-              facultyMap.set(profileId, {
-                profileId,
-                name: entry?.profiles?.full_name || 'Unknown',
-                department: entry?.profiles?.department || 'Unassigned',
-                publications: 0,
-                grants: 0,
-                score: scoreByProfileId.get(profileId) || 0
-              });
-            }
-
-            const current = facultyMap.get(profileId);
-            if (module === 'journals' || module === 'conferences') {
-              current.publications += 1;
-            }
-            if (module === 'research_funding') {
-              current.grants += 1;
-            }
-            facultyMap.set(profileId, current);
-          });
-        });
-
-        const formattedRankings = [...facultyMap.values()]
-          .sort((a, b) => b.score - a.score)
-          .map((row, index) => ({
-            rank: index + 1,
-            name: row.name,
-            department: row.department,
-            publications: row.publications,
-            grants: row.grants,
-            score: formatScore(row.score)
-          }));
-
-        setRankings(formattedRankings);
+        setRows(merged.map((row, index) => ({ ...row, rank: index + 1 })));
         setCurrentPage(1);
       } catch (err) {
-        console.error('[FacultyRanking] API failure:', err);
+        console.error('[FacultyRanking] Load failure:', err);
+        setError(err.message || 'Failed to load ranking data');
       } finally {
         setLoading(false);
       }
@@ -129,23 +92,31 @@ const FacultyRanking = () => {
 
   // Filter rankings based on search query
   const filteredRankings = useMemo(() => {
-    if (!searchQuery.trim()) return rankings;
+    if (!searchQuery.trim()) return rows;
     const query = searchQuery.toLowerCase().trim();
-    return rankings.filter(faculty => 
+    return rows.filter(faculty => 
       faculty.name.toLowerCase().includes(query) ||
       faculty.department.toLowerCase().includes(query)
     );
-  }, [rankings, searchQuery]);
+  }, [rows, searchQuery]);
 
   const totalPages = Math.max(1, Math.ceil(filteredRankings.length / PAGE_SIZE));
   const safeCurrentPage = Math.min(currentPage, totalPages);
   const pageStart = (safeCurrentPage - 1) * PAGE_SIZE;
   const paginatedRankings = filteredRankings.slice(pageStart, pageStart + PAGE_SIZE);
-  const totalFaculty = filteredRankings.length;
-  const averageScore = totalFaculty
-    ? filteredRankings.reduce((sum, row) => sum + Number(row.score || 0), 0) / totalFaculty
-    : 0;
-  const topFaculty = filteredRankings[0];
+
+  const totals = useMemo(() => {
+    return filteredRankings.reduce(
+      (acc, row) => {
+        acc.publications += row.publications;
+        acc.patents += row.patents;
+        acc.grants += row.grants;
+        acc.total += row.total;
+        return acc;
+      },
+      { publications: 0, patents: 0, grants: 0, total: 0 }
+    );
+  }, [filteredRankings]);
 
   // Reset to page 1 when search changes
   useEffect(() => {
@@ -153,8 +124,8 @@ const FacultyRanking = () => {
   }, [searchQuery]);
 
   const downloadReport = () => {
-    const headers = ['Rank', 'Name', 'Department', 'Publications', 'Grants', 'Total Score'];
-    const csvData = filteredRankings.map((r) => [r.rank, `"${r.name}"`, `"${r.department}"`, r.publications, r.grants, r.score].join(','));
+    const headers = ['Rank', 'Name', 'Department', 'Publications', 'Patents', 'Grants', 'Total'];
+    const csvData = filteredRankings.map((r) => [r.rank, `"${r.name}"`, `"${r.department}"`, r.publications, r.patents, r.grants, r.total].join(','));
     const csvContent = [headers.join(','), ...csvData].join('\n');
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -174,7 +145,7 @@ const FacultyRanking = () => {
       <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Faculty Ranking</h1>
-          <p className="text-sm text-gray-500 mt-1">Live leaderboard based on approved activities and career score.</p>
+          <p className="text-sm text-gray-500 mt-1">Ranked by total activity submissions.</p>
         </div>
         <div className="flex w-full sm:w-auto space-x-3">
           <button
@@ -186,19 +157,24 @@ const FacultyRanking = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+      {error && <div className="mb-6 p-4 bg-red-50 border border-red-100 text-red-700 rounded-lg">{error}</div>}
+
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <div className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm">
           <p className="text-xs uppercase tracking-wider text-gray-500 font-semibold">Total Faculty</p>
-          <p className="text-2xl font-bold text-gray-900 mt-2">{totalFaculty}</p>
+          <p className="text-2xl font-bold text-gray-900 mt-2">{filteredRankings.length}</p>
         </div>
         <div className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm">
-          <p className="text-xs uppercase tracking-wider text-gray-500 font-semibold">Average Score</p>
-          <p className="text-2xl font-bold text-blue-700 mt-2">{formatScore(averageScore)}</p>
+          <p className="text-xs uppercase tracking-wider text-gray-500 font-semibold">Total Submissions</p>
+          <p className="text-2xl font-bold text-blue-700 mt-2">{totals.total}</p>
         </div>
         <div className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm">
-          <p className="text-xs uppercase tracking-wider text-gray-500 font-semibold">Top Faculty</p>
-          <p className="text-lg font-bold text-gray-900 mt-2 truncate">{topFaculty?.name || 'N/A'}</p>
-          <p className="text-sm text-gray-500">{topFaculty ? `${topFaculty.score} score` : 'No data yet'}</p>
+          <p className="text-xs uppercase tracking-wider text-gray-500 font-semibold">Publications</p>
+          <p className="text-2xl font-bold text-gray-900 mt-2">{totals.publications}</p>
+        </div>
+        <div className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm">
+          <p className="text-xs uppercase tracking-wider text-gray-500 font-semibold">Grants</p>
+          <p className="text-2xl font-bold text-gray-900 mt-2">{totals.grants}</p>
         </div>
       </div>
 
@@ -247,23 +223,24 @@ const FacultyRanking = () => {
                 <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Faculty Name</th>
                 <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Department</th>
                 <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-center">Publications</th>
+                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-center">Patents</th>
                 <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-center">Grants</th>
-                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Score</th>
+                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Total</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {paginatedRankings.map((faculty) => (
-                <tr key={faculty.rank} className="hover:bg-slate-50/70 transition-colors">
+                <tr key={faculty.profileId} className="hover:bg-slate-50/70 transition-colors">
                   <td className="px-6 py-4">
                     <div
                       className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${
                         faculty.rank === 1
                           ? 'bg-yellow-100 text-yellow-700'
                           : faculty.rank === 2
-                          ? 'bg-gray-200 text-gray-700'
-                          : faculty.rank === 3
-                          ? 'bg-orange-100 text-orange-700'
-                          : 'bg-gray-100 text-gray-600'
+                            ? 'bg-gray-200 text-gray-700'
+                            : faculty.rank === 3
+                              ? 'bg-orange-100 text-orange-700'
+                              : 'bg-gray-100 text-gray-600'
                       }`}
                     >
                       {faculty.rank}
@@ -274,10 +251,11 @@ const FacultyRanking = () => {
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-600">{faculty.department}</td>
                   <td className="px-6 py-4 text-center text-sm font-semibold text-gray-800">{faculty.publications}</td>
+                  <td className="px-6 py-4 text-center text-sm font-semibold text-gray-800">{faculty.patents}</td>
                   <td className="px-6 py-4 text-center text-sm font-semibold text-gray-800">{faculty.grants}</td>
                   <td className="px-6 py-4 text-right">
                     <span className="inline-flex items-center rounded-full bg-blue-50 px-3 py-1 text-blue-700 font-bold tracking-wide">
-                      {faculty.score}
+                      {faculty.total}
                     </span>
                   </td>
                 </tr>
@@ -285,9 +263,10 @@ const FacultyRanking = () => {
             </tbody>
           </table>
         </div>
+
         {filteredRankings.length === 0 && (
           <div className="p-12 text-center text-gray-500">
-            {searchQuery ? `No faculty found matching "${searchQuery}"` : 'No faculty data found in backend.'}
+            {searchQuery ? `No faculty found matching "${searchQuery}"` : 'No faculty data available. Ensure the admin account has access to profiles and activity tables in Supabase.'}
           </div>
         )}
 
@@ -298,19 +277,18 @@ const FacultyRanking = () => {
             </p>
             <div className="flex items-center gap-2">
               <button
-                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                type="button"
                 disabled={safeCurrentPage === 1}
-                className="px-3 py-1.5 text-sm rounded-lg border border-gray-300 bg-white hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
               >
-                Previous
+                Prev
               </button>
-              <span className="text-sm font-medium text-gray-700">
-                Page {safeCurrentPage} / {totalPages}
-              </span>
               <button
-                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                type="button"
                 disabled={safeCurrentPage === totalPages}
-                className="px-3 py-1.5 text-sm rounded-lg border border-gray-300 bg-white hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
               >
                 Next
               </button>

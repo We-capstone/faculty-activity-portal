@@ -5,6 +5,7 @@ import Dashboard from './Dashboard';
 import MyActivities from './MyActivities';
 import AddEditActivity from './AddEditActivity';
 import PerformanceReport from './PerformanceReport';
+import FloatingChatbot from '../Chatbot';
 
 const FacultyApp = () => {
   return (
@@ -15,6 +16,7 @@ const FacultyApp = () => {
         <Route path="activities" element={<MyActivities />} />
         <Route path="add-activity" element={<AddEditActivity />} />
         <Route path="report" element={<PerformanceReport />} />
+        <Route path="chatbot" element={<FloatingChatbot />} />
       </Route>
     </Routes>
   );
