@@ -2,14 +2,26 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../supabase';
 import BlueLoader from '../components/BlueLoader';
 
+<<<<<<< Updated upstream
 const PAGE_SIZE = 8;
+=======
+const PAGE_SIZE = 5;
+const MODULES = ['journals', 'conferences', 'patents', 'research-funding'];
+>>>>>>> Stashed changes
 
 const normalizeRole = (role) => (role || '').toString().trim().toUpperCase();
 const isFacultyRole = (role) => normalizeRole(role) !== 'ADMIN';
+<<<<<<< Updated upstream
 
 const toNumber = (value) => {
   const n = Number(value);
   return Number.isFinite(n) ? n : 0;
+=======
+const formatNumber = (value) => {
+  const num = Number(value || 0);
+  if (Number.isNaN(num)) return '0';
+  return num.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+>>>>>>> Stashed changes
 };
 
 const FacultyRanking = () => {
@@ -32,6 +44,7 @@ const FacultyRanking = () => {
           return;
         }
 
+<<<<<<< Updated upstream
         const [profilesResponse, journalsResponse, conferencesResponse, patentsResponse, fundingResponse] =
           await Promise.all([
             supabase.from('profiles').select('id, full_name, department, role'),
@@ -42,6 +55,18 @@ const FacultyRanking = () => {
           ]);
 
         const profiles = (profilesResponse?.data || []).filter((profile) => profile?.id && isFacultyRole(profile?.role));
+=======
+        const [profilesResponse, ...modulePayloads] = await Promise.all([
+          supabase.from('profiles').select('id, full_name, department, role'),
+          ...MODULES.map((module) =>
+            apiRequest(`/faculty/${module}`, {
+              token: session.access_token
+            })
+          )
+        ]);
+
+        const profiles = (profilesResponse?.data || []).filter((profile) => isFacultyRole(profile?.role));
+>>>>>>> Stashed changes
 
         const counts = new Map();
         const bump = (profileId, field) => {
@@ -63,6 +88,7 @@ const FacultyRanking = () => {
             profileId: profile.id,
             name: profile.full_name || 'Unknown',
             department: profile.department || 'Unassigned',
+<<<<<<< Updated upstream
             publications: toNumber(profileCounts.publications),
             patents: toNumber(profileCounts.patents),
             grants: toNumber(profileCounts.grants),
@@ -76,6 +102,54 @@ const FacultyRanking = () => {
         });
 
         setRows(merged.map((row, index) => ({ ...row, rank: index + 1 })));
+=======
+            publications: 0,
+            grants: 0,
+            score: 0
+          });
+        });
+
+        MODULES.forEach((module, index) => {
+          (modulePayloads[index] || []).forEach((entry) => {
+            const profileId = getProfileId(entry);
+            if (!profileId) return;
+
+            if (!facultyMap.has(profileId)) {
+              facultyMap.set(profileId, {
+                profileId,
+                name: entry?.profiles?.full_name || 'Unknown',
+                department: entry?.profiles?.department || 'Unassigned',
+                publications: 0,
+                grants: 0,
+                score: 0
+              });
+            }
+
+            const current = facultyMap.get(profileId);
+            if (module === 'journals' || module === 'conferences') {
+              current.publications += 1;
+            }
+            if (module === 'research-funding') {
+              current.grants += 1;
+            }
+            current.score = current.publications + current.grants;
+            facultyMap.set(profileId, current);
+          });
+        });
+
+        const formattedRankings = [...facultyMap.values()]
+          .sort((a, b) => b.score - a.score)
+          .map((row, index) => ({
+            rank: index + 1,
+            name: row.name,
+            department: row.department,
+            publications: row.publications,
+            grants: row.grants,
+            score: formatNumber(row.score)
+          }));
+
+        setRankings(formattedRankings);
+>>>>>>> Stashed changes
         setCurrentPage(1);
       } catch (err) {
         console.error('[FacultyRanking] Load failure:', err);
@@ -145,7 +219,11 @@ const FacultyRanking = () => {
       <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Faculty Ranking</h1>
+<<<<<<< Updated upstream
           <p className="text-sm text-gray-500 mt-1">Ranked by total activity submissions.</p>
+=======
+          <p className="text-sm text-gray-500 mt-1">Live leaderboard based on total activities.</p>
+>>>>>>> Stashed changes
         </div>
         <div className="flex w-full sm:w-auto space-x-3">
           <button
@@ -165,8 +243,13 @@ const FacultyRanking = () => {
           <p className="text-2xl font-bold text-gray-900 mt-2">{filteredRankings.length}</p>
         </div>
         <div className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm">
+<<<<<<< Updated upstream
           <p className="text-xs uppercase tracking-wider text-gray-500 font-semibold">Total Submissions</p>
           <p className="text-2xl font-bold text-blue-700 mt-2">{totals.total}</p>
+=======
+          <p className="text-xs uppercase tracking-wider text-gray-500 font-semibold">Average Score</p>
+          <p className="text-2xl font-bold text-blue-700 mt-2">{formatNumber(averageScore)}</p>
+>>>>>>> Stashed changes
         </div>
         <div className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm">
           <p className="text-xs uppercase tracking-wider text-gray-500 font-semibold">Publications</p>

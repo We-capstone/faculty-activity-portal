@@ -9,8 +9,8 @@ const Dashboard = () => {
   const [error, setError] = useState('');
   const [stats, setStats] = useState({
     total: 0,
-    approved: 0,
-    pending: 0,
+    modules: 0,
+    recent: 0,
     score: 0
   });
   const [activities, setActivities] = useState([]);
@@ -41,8 +41,14 @@ const Dashboard = () => {
         );
 
         const allActivities = results.flat();
-        const approved = allActivities.filter((item) => item.status === 'APPROVED').length;
-        const pending = allActivities.filter((item) => item.status === 'PENDING').length;
+        const recentCount = allActivities.filter((item) => {
+          if (!item.created_at) return false;
+          const created = new Date(item.created_at);
+          const last30Days = new Date();
+          last30Days.setDate(last30Days.getDate() - 30);
+          return created >= last30Days;
+        }).length;
+        const activeModules = new Set(allActivities.map((item) => item.module)).size;
 
         let dashboardData = null;
         try {
@@ -60,8 +66,8 @@ const Dashboard = () => {
 
         setStats({
           total: allActivities.length,
-          approved,
-          pending,
+          modules: activeModules,
+          recent: recentCount,
           score: Number.isFinite(score) ? score.toFixed(2) : '0.00'
         });
 
@@ -90,12 +96,12 @@ const Dashboard = () => {
           <p className="text-3xl font-bold mt-2">{loading ? '-' : stats.total}</p>
         </div>
         <div className="bg-white p-5 sm:p-6 rounded-xl shadow-sm border border-gray-100">
-          <h3 className="text-gray-500 text-sm font-medium">Approved</h3>
-          <p className="text-3xl font-bold mt-2 text-green-600">{loading ? '-' : stats.approved}</p>
+          <h3 className="text-gray-500 text-sm font-medium">Active Modules</h3>
+          <p className="text-3xl font-bold mt-2 text-green-600">{loading ? '-' : stats.modules}</p>
         </div>
         <div className="bg-white p-5 sm:p-6 rounded-xl shadow-sm border border-gray-100">
-          <h3 className="text-gray-500 text-sm font-medium">Pending Review</h3>
-          <p className="text-3xl font-bold mt-2 text-yellow-600">{loading ? '-' : stats.pending}</p>
+          <h3 className="text-gray-500 text-sm font-medium">Recent (30 days)</h3>
+          <p className="text-3xl font-bold mt-2 text-yellow-600">{loading ? '-' : stats.recent}</p>
         </div>
         <div className="bg-white p-5 sm:p-6 rounded-xl shadow-sm border border-gray-100">
           <h3 className="text-gray-500 text-sm font-medium">Performance Score</h3>
@@ -131,22 +137,11 @@ const Dashboard = () => {
 
         <div className="space-y-3">
           {activities.map((item) => (
-            <div key={`${item.module}-${getEntryId(item)}`} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-gray-100 pb-3 last:border-0 last:pb-0">
+            <div key={`${item.module}-${getEntryId(item)}`} className="border-b border-gray-100 pb-3 last:border-0 last:pb-0">
               <div>
                 <p className="text-sm font-semibold text-gray-900">{getEntryTitle(item)}</p>
                 <p className="text-xs text-gray-500">{item.module}</p>
               </div>
-              <span
-                className={`rounded-full px-2 py-1 text-xs font-semibold ${
-                  item.status === 'APPROVED'
-                    ? 'bg-green-100 text-green-700'
-                    : item.status === 'REJECTED'
-                    ? 'bg-red-100 text-red-700'
-                    : 'bg-yellow-100 text-yellow-700'
-                }`}
-              >
-                {item.status || 'PENDING'}
-              </span>
             </div>
           ))}
 

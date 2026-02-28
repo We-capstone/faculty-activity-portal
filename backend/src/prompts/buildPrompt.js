@@ -22,8 +22,7 @@ journal_publications(
   title,
   journal_name,
   publication_date,
-  journal_quartile,
-  status
+  journal_quartile
 )
 
 conference_publications(
@@ -31,8 +30,7 @@ conference_publications(
   profile_id,
   title,
   conference_name,
-  conference_date,
-  status
+  conference_date
 )
 
 patents(
@@ -41,8 +39,7 @@ patents(
   patent_title,
   patent_status,
   filed_date,
-  granted_date,
-  status
+  granted_date
 )
 
 research_funding(
@@ -52,8 +49,7 @@ research_funding(
   funding_agency,
   amount,
   start_date,
-  end_date,
-  status
+  end_date
 )
 
 =====================

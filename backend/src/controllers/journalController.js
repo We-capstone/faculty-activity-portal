@@ -20,8 +20,7 @@ export const journalController = {
           volume,
           publication_date,
           paper_link,
-          indexing_details,
-          status: 'PENDING'
+          indexing_details
         }])
         .select();
 
@@ -62,7 +61,7 @@ export const journalController = {
       // 1. Check if user is Admin or Owner
       const { data: existing } = await supabase
         .from('journal_publications')
-        .select('profile_id, status')
+        .select('profile_id')
         .eq('journal_id', id)
         .single();
 
@@ -75,11 +74,8 @@ export const journalController = {
         return res.status(403).json({ error: 'Unauthorized' });
       }
 
-      // 2. Restrict Faculty: Can't change status or edit if already approved
+      // 2. Restrict Faculty: Cannot escalate moderation fields
       if (!isAdmin) {
-        if (existing.status !== 'PENDING') {
-          return res.status(403).json({ error: 'Cannot edit approved journals' });
-        }
         delete updates.status; // Prevent role escalation
         delete updates.remarks;
       }

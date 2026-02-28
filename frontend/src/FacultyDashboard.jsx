@@ -20,7 +20,7 @@ const FacultyDashboard = () => {
   const [stats, setStats] = useState({
     totalActivities: 0,
     approvedScore: 0,
-    pendingReview: 0
+    activeModules: 0
   });
   const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -52,14 +52,16 @@ const FacultyDashboard = () => {
         setUser(session.user);
 
         const [facultyStats, journals, conferences, books] = await Promise.all([
-          apiRequest('/api/analytics/faculty/stats', { token: session.access_token }),
+          apiRequest('/analytics/stats', { token: session.access_token }),
           apiRequest('/api/faculty/journals', { token: session.access_token }),
           apiRequest('/api/faculty/conferences', { token: session.access_token }),
           apiRequest('/api/faculty/books', { token: session.access_token })
         ]);
 
         const allEntries = [...(journals || []), ...(conferences || []), ...(books || [])];
-        const pending = allEntries.filter((entry) => entry.status === 'PENDING').length;
+        const activeModules = new Set(
+          allEntries.map((entry) => (entry.journal_id ? 'journals' : entry.conference_id ? 'conferences' : 'books'))
+        ).size;
 
         const merged = [
           ...(journals || []).map((entry) => ({ ...entry, module: 'journals' })),
@@ -72,7 +74,7 @@ const FacultyDashboard = () => {
         setStats({
           totalActivities: allEntries.length,
           approvedScore: Number(facultyStats?.career?.career_score || 0).toFixed(2),
-          pendingReview: pending
+          activeModules
         });
         setActivities(merged);
       } catch (err) {
@@ -120,8 +122,8 @@ const FacultyDashboard = () => {
             <p className="text-3xl font-bold mt-2 text-green-600">{stats.approvedScore}</p>
           </div>
           <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-            <h3 className="text-gray-500 text-sm font-medium">Pending Review</h3>
-            <p className="text-3xl font-bold mt-2 text-yellow-600">{stats.pendingReview}</p>
+            <h3 className="text-gray-500 text-sm font-medium">Active Modules</h3>
+            <p className="text-3xl font-bold mt-2 text-yellow-600">{stats.activeModules}</p>
           </div>
         </div>
 
@@ -142,22 +144,11 @@ const FacultyDashboard = () => {
             <h2 className="text-lg font-bold mb-4">Recent Submissions</h2>
             <div className="space-y-3">
               {activities.map((item) => (
-                <div key={`${item.module}-${getEntryId(item)}`} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
+                <div key={`${item.module}-${getEntryId(item)}`} className="py-2 border-b border-gray-50 last:border-0">
                   <div>
                     <p className="text-sm font-semibold text-gray-900 truncate max-w-xs">{getEntryTitle(item)}</p>
                     <p className="text-xs text-gray-500 capitalize">{item.module}</p>
                   </div>
-                  <span
-                    className={`text-xs font-semibold px-2 py-1 rounded-full ${
-                      item.status === 'APPROVED'
-                        ? 'bg-green-100 text-green-700'
-                        : item.status === 'REJECTED'
-                        ? 'bg-red-100 text-red-700'
-                        : 'bg-yellow-100 text-yellow-700'
-                    }`}
-                  >
-                    {item.status || 'PENDING'}
-                  </span>
                 </div>
               ))}
               {activities.length === 0 && <p className="text-sm text-gray-500">No activities found.</p>}

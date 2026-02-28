@@ -7,13 +7,13 @@ const PerformanceReport = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [scoreData, setScoreData] = useState({ score: 0, yearly: [] });
-  const [approvedCount, setApprovedCount] = useState(0);
+  const [activityCount, setActivityCount] = useState(0);
 
   const publicationImpact = useMemo(() => {
-    if (approvedCount >= 15) return 'High';
-    if (approvedCount >= 5) return 'Moderate';
+    if (activityCount >= 15) return 'High';
+    if (activityCount >= 5) return 'Moderate';
     return 'Low';
-  }, [approvedCount]);
+  }, [activityCount]);
 
   useEffect(() => {
     const loadReport = async () => {
@@ -28,11 +28,11 @@ const PerformanceReport = () => {
         if (!session?.access_token) return;
 
         // 🔥 CALL YOUR WORKING BACKEND ENDPOINT
-        const analytics = await apiRequest(`/analytics/faculty/stats`, {
+        const analytics = await apiRequest('/analytics/stats', {
           token: session.access_token
         });
 
-        // Count approved activities (existing logic)
+        // Count all activities across selected modules
         const rowsByModule = await Promise.all(
           FACULTY_MODULES.map(async (module) => {
             try {
@@ -46,11 +46,7 @@ const PerformanceReport = () => {
         );
 
         const allRows = rowsByModule.flat();
-        const approved = allRows.filter(
-          (item) => item.status === 'APPROVED'
-        ).length;
-
-        setApprovedCount(approved);
+        setActivityCount(allRows.length);
 
         // 🔥 MAP BACKEND RESPONSE STRUCTURE
         setScoreData({
@@ -125,7 +121,7 @@ const PerformanceReport = () => {
             My Performance Report
           </h2>
           <p className="text-gray-500">
-            Comprehensive summary based on approved activities
+            Comprehensive summary based on your submitted activities
           </p>
         </div>
 
@@ -155,7 +151,7 @@ const PerformanceReport = () => {
           <p className="text-5xl font-bold mt-4">
             {loading ? '-' : scoreData.score.toFixed(2)}
           </p>
-          <p className="text-sm mt-4">Approved-only score</p>
+          <p className="text-sm mt-4">Based on faculty analytics</p>
         </div>
 
         <div className="bg-white rounded-2xl p-6 border shadow-sm">
@@ -169,10 +165,10 @@ const PerformanceReport = () => {
 
         <div className="bg-white rounded-2xl p-6 border shadow-sm">
           <h3 className="text-gray-500 text-sm font-medium uppercase tracking-wider">
-            Approved Activities
+            Total Activities
           </h3>
           <p className="text-4xl font-bold mt-4 text-gray-800">
-            {loading ? '-' : approvedCount}
+            {loading ? '-' : activityCount}
           </p>
         </div>
       </div>

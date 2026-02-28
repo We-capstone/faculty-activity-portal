@@ -26,23 +26,42 @@ const MODULE_TABLES = {
       'publication_date',
       'paper_link',
       'indexing_details',
-      'journal_quartile'
+      'journal_quartile',
+      'orcid_put_code'
     ]
   },
   conferences: {
     table: 'conference_publications',
     pk: 'conference_id',
-    allowedFields: ['title', 'conference_name', 'proceedings_details', 'conference_date']
+    allowedFields: [
+      'title',
+      'conference_name',
+      'author_position',
+      'conference_date',
+      'proceedings_details',
+      'conference_link',
+      'indexing_details',
+      'orcid_put_code'
+    ]
   },
   patents: {
     table: 'patents',
     pk: 'patent_id',
-    allowedFields: ['title', 'patent_number', 'year', 'description']
+    allowedFields: [
+      'patent_title',
+      'application_no',
+      'patent_status',
+      'filed_date',
+      'published_date',
+      'granted_date',
+      'publish_proof_path',
+      'grant_proof_path'
+    ]
   },
   'research-funding': {
     table: 'research_funding',
     pk: 'funding_id',
-    allowedFields: ['title', 'funding_agency', 'year', 'description']
+    allowedFields: ['funding_agency', 'project_title', 'amount', 'start_date', 'end_date', 'orcid_put_code']
   },
  };
 
@@ -65,8 +84,7 @@ export const facultyController = {
         .insert([
           {
             ...safeBody,
-            profile_id: req.user.id,
-            status: 'PENDING'
+            profile_id: req.user.id
           }
         ])
         .select();
@@ -145,9 +163,6 @@ export const facultyController = {
 
       // Faculty restrictions
       if (!isAdmin) {
-        if (existing.status !== 'PENDING') {
-          return res.status(403).json({ error: 'Cannot edit approved record' });
-        }
         delete updates.status;
         delete updates.remarks;
       }
@@ -222,10 +237,12 @@ export const facultyController = {
 
     if (uploadError) throw uploadError;
 
+    const proofColumn = module === 'patents' ? (req.query?.kind === 'grant' ? 'grant_proof_path' : 'publish_proof_path') : 'proof_path';
+
     // Save path in DB
     const { data, error: updateError } = await supabase
       .from(config.table)
-      .update({ proof_path: fileName })
+      .update({ [proofColumn]: fileName })
       .eq(config.pk, id)
       .select()
       .single();
@@ -255,10 +272,12 @@ getProof: async (req, res) => {
     const config = getModule(req);
     if (!config) return res.status(400).json({ error: 'Invalid module' });
 
+    const proofColumns = config.table === 'patents' ? 'publish_proof_path, grant_proof_path' : 'proof_path';
+
     // Fetch record
     const { data, error } = await supabase
       .from(config.table)
-      .select('proof_path, profile_id')
+      .select(`${proofColumns}, profile_id`)
       .eq(config.pk, id)
       .single();
 
@@ -274,14 +293,21 @@ getProof: async (req, res) => {
       return res.status(403).json({ error: 'Unauthorized' });
     }
 
-    if (!data.proof_path) {
+    const selectedProofPath =
+      config.table === 'patents'
+        ? req.query?.kind === 'grant'
+          ? data.grant_proof_path
+          : data.publish_proof_path || data.grant_proof_path
+        : data.proof_path;
+
+    if (!selectedProofPath) {
       return res.status(404).json({ error: 'No proof uploaded' });
     }
 
     // Generate signed URL
     const { data: signedUrlData, error: urlError } = await supabase.storage
       .from('proofs') // ← your bucket name
-      .createSignedUrl(data.proof_path, 60 * 5); // 5 minutes
+      .createSignedUrl(selectedProofPath, 60 * 5); // 5 minutes
 
     if (urlError) throw urlError;
 

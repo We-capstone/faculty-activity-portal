@@ -3,8 +3,9 @@
 <head>
 <title>My Activities</title>
 <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script defer src="faculty.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script defer src="faculty.js"></script>
+<script>
 async function loadActivities() {
   const res = await fetch(`${BACKEND_URL}/journals`, {
     headers: await headers()
@@ -18,11 +19,6 @@ async function loadActivities() {
           <h4 class="font-semibold">${a.title}</h4>
           <p class="text-sm text-gray-500">${a.journal_name || ""}</p>
         </div>
-        <span class="${
-          a.status === "APPROVED"
-            ? "text-green-600"
-            : "text-yellow-500"
-        }">${a.status}</span>
       </div>
     `).join("");
 }

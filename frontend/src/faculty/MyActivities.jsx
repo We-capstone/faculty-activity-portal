@@ -94,7 +94,6 @@ const MyActivities = () => {
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title/Name</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Year</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
@@ -105,19 +104,6 @@ const MyActivities = () => {
                   <tr key={entryId}>
                     <td className="px-6 py-4 text-sm text-gray-900">{getEntryTitle(row)}</td>
                     <td className="px-6 py-4 text-sm text-gray-700">{getEntryYear(row)}</td>
-                    <td className="px-6 py-4">
-                      <span
-                        className={`rounded-full px-2 py-1 text-xs font-semibold ${
-                          row.status === 'APPROVED'
-                            ? 'bg-green-100 text-green-700'
-                            : row.status === 'REJECTED'
-                            ? 'bg-red-100 text-red-700'
-                            : 'bg-yellow-100 text-yellow-700'
-                        }`}
-                      >
-                        {row.status || 'PENDING'}
-                      </span>
-                    </td>
                     <td className="px-6 py-4 text-right">
                       <button
                         onClick={() => handleDelete(entryId)}
@@ -132,7 +118,7 @@ const MyActivities = () => {
 
               {!loading && rows.length === 0 && (
                 <tr>
-                  <td colSpan="4" className="px-6 py-12 text-center text-gray-500 italic">
+                  <td colSpan="3" className="px-6 py-12 text-center text-gray-500 italic">
                     No activities recorded for this category yet.
                   </td>
                 </tr>
@@ -140,7 +126,7 @@ const MyActivities = () => {
 
               {loading && (
                 <tr>
-                  <td colSpan="4" className="px-6 py-12 text-center text-gray-500 italic">
+                  <td colSpan="3" className="px-6 py-12 text-center text-gray-500 italic">
                     Loading activities...
                   </td>
                 </tr>

@@ -139,7 +139,6 @@ const FloatingChatbot = () => {
               }}>
                 <strong>Title:</strong> {item.title} <br/>
                 <strong>Journal:</strong> {item.journal_name} <br/>
-                <strong>Status:</strong> {item.status} <br/>
                 <strong>Indexing:</strong> {item.indexing_details || "N/A"} <br/>
                 <strong>Publication Date:</strong> {item.publication_date}
               </div>

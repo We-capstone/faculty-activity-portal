@@ -3,11 +3,18 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-const groq = new Groq({
-  apiKey: process.env.GROQ_API_KEY,
-});
+const groqApiKey = process.env.GROQ_API_KEY;
+
+const groq = groqApiKey
+  ? new Groq({
+      apiKey: groqApiKey,
+    })
+  : null;
 
 export async function generateSQL(prompt, user) {
+  if (!groq) {
+    throw new Error("GROQ_API_KEY is missing. Set it in backend/.env.");
+  }
 
   const systemPrompt = `
 You are an AI system that converts natural language into SAFE PostgreSQL SELECT queries.
@@ -18,13 +25,13 @@ DATABASE SCHEMA
 
 profiles(id, full_name, role, designation, department)
 
-journal_publications(journal_id, profile_id, title, journal_name, publication_date, journal_quartile, status)
+journal_publications(journal_id, profile_id, title, journal_name, publication_date, journal_quartile)
 
-conference_publications(conference_id, profile_id, title, conference_name, conference_date, status)
+conference_publications(conference_id, profile_id, title, conference_name, conference_date)
 
-patents(patent_id, profile_id, patent_title, patent_status, filed_date, granted_date, status)
+patents(patent_id, profile_id, patent_title, patent_status, filed_date, granted_date)
 
-research_funding(funding_id, profile_id, project_title, funding_agency, amount, start_date, end_date, status)
+research_funding(funding_id, profile_id, project_title, funding_agency, amount, start_date, end_date)
 
 =====================
 ACCESS CONTROL

@@ -1,12 +1,8 @@
 export const FACULTY_MODULES = [
   { id: 'journals', label: 'Journals' },
   { id: 'conferences', label: 'Conferences' },
-  { id: 'books', label: 'Books' },
-  { id: 'book-chapters', label: 'Book Chapters' },
   { id: 'patents', label: 'Patents' },
-  { id: 'research-funding', label: 'Research Funding' },
-  { id: 'consultancy', label: 'Consultancy' },
-  { id: 'academic-service', label: 'Academic Service' }
+  { id: 'research-funding', label: 'Research Funding' }
 ];
 
 export function getEntryId(entry) {
@@ -37,7 +33,17 @@ export function getEntryTitle(entry) {
 
 export function getEntryYear(entry) {
   if (entry.year) return entry.year;
-  const dateValue = entry.publication_date || entry.date || entry.created_at || entry.updated_at;
+  const dateValue =
+    entry.publication_date ||
+    entry.conference_date ||
+    entry.filed_date ||
+    entry.published_date ||
+    entry.granted_date ||
+    entry.start_date ||
+    entry.end_date ||
+    entry.date ||
+    entry.created_at ||
+    entry.updated_at;
   if (!dateValue) return '-';
   const parsed = new Date(dateValue);
   return Number.isNaN(parsed.getTime()) ? '-' : parsed.getFullYear();
