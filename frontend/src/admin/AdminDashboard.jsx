@@ -14,12 +14,6 @@ const isFacultyRole = (role) => normalizeRole(role) !== 'ADMIN';
 
 const QUICK_LINKS = [
   {
-    to: '/admin/ranking',
-    title: 'Faculty Rankings',
-    description: 'View faculty activity leaderboard',
-    icon: 'ranking'
-  },
-  {
     to: '/admin/analytics',
     title: 'Department Analytics',
     description: 'Compare department research output over time',
@@ -28,17 +22,6 @@ const QUICK_LINKS = [
 ];
 
 const QuickLinkIcon = ({ icon }) => {
-  if (icon === 'ranking') {
-    return (
-      <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5" stroke="currentColor" strokeWidth="1.8">
-        <path d="M4 20h16" strokeLinecap="round" />
-        <rect x="6" y="11" width="3" height="6" rx="0.8" />
-        <rect x="11" y="8" width="3" height="9" rx="0.8" />
-        <rect x="16" y="5" width="3" height="12" rx="0.8" />
-      </svg>
-    );
-  }
-
   return (
     <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5" stroke="currentColor" strokeWidth="1.8">
       <path d="M3 3v18h18" strokeLinecap="round" />

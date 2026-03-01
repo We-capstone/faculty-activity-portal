@@ -75,7 +75,6 @@ const AdminLayout = () => {
 
   const navItems = [
     { name: 'Dashboard', path: '/admin' },
-    { name: 'Faculty Ranking', path: '/admin/ranking' },
     { name: 'Department Analytics', path: '/admin/analytics' },
   ];
 
