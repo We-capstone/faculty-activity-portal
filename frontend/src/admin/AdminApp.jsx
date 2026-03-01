@@ -1,10 +1,9 @@
 import React from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import AdminLayout from './AdminLayout';
 import AdminDashboard from './AdminDashboard';
 import FacultyRanking from './FacultyRanking';
 import DepartmentAnalytics from './DepartmentAnalytics';
-import FloatingChatbot from '../Chatbot';
 
 const AdminApp = () => {
   return (
@@ -13,7 +12,7 @@ const AdminApp = () => {
         <Route index element={<AdminDashboard />} />
         <Route path="ranking" element={<FacultyRanking />} />
         <Route path="analytics" element={<DepartmentAnalytics />} />
-        <Route path="chatbot" element={<FloatingChatbot />} />
+        <Route path="chatbot" element={<Navigate to="/admin" replace />} />
       </Route>
     </Routes>
   );

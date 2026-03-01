@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '../supabase';
+import FloatingChatbot from '../Chatbot';
 
 const AdminLayout = () => {
   const location = useLocation();
@@ -197,6 +198,8 @@ const AdminLayout = () => {
           </div>
         </div>
       )}
+
+      <FloatingChatbot />
     </div>
   );
 };
