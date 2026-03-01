@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { syncUserByOrcid } from '../services/syncService.js';
 
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 
@@ -99,24 +100,42 @@ export const facultyController = {
 
   // LIST (Admin = all, Faculty = own)
   getAll: async (req, res) => {
-    try {
-      const config = getModule(req);
-      if (!config) return res.status(400).json({ error: 'Invalid module' });
+  try {
+    const config = getModule(req);
+    if (!config) return res.status(400).json({ error: 'Invalid module' });
 
-      let query = supabase.from(config.table).select('*');
+    const userId = req.user.id;
 
-      if (req.user.role !== 'ADMIN') {
-        query = query.eq('profile_id', req.user.id);
-      }
+    // 🔹 1️⃣ Check last sync
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('orcid_id, last_orcid_sync')
+      .eq('id', userId)
+      .single();
 
-      const { data, error } = await query;
-      if (error) throw error;
+    if (profileError) throw profileError;
 
-      res.json(data || []);
-    } catch (err) {
-      res.status(500).json({ error: err.message });
+    // 🔹 2️⃣ First login auto-sync
+    if (profile?.orcid_id && !profile.last_orcid_sync) {
+      await syncUserByOrcid(profile.orcid_id);
     }
-  },
+
+    // 🔹 3️⃣ Normal query
+    let query = supabase.from(config.table).select('*');
+
+    if (req.user.role !== 'ADMIN') {
+      query = query.eq('profile_id', userId);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    res.json(data || []);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+},
+
 
   // GET SINGLE
   getOne: async (req, res) => {
