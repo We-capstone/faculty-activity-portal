@@ -4,11 +4,29 @@ import { apiRequest } from '../apiClient';
 import { supabase } from '../supabase';
 import { FACULTY_MODULES, getEntryId, getEntryTitle, getEntryYear } from './modules';
 
+const HIDDEN_DETAIL_KEYS = new Set(['id', 'user_id', 'status', 'patent_status']);
+
+const toLabel = (key) =>
+  String(key || '')
+    .replace(/_/g, ' ')
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+
+const formatDetailValue = (value) => {
+  if (value === null || value === undefined || value === '') return '-';
+  if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+  if (typeof value === 'object') return JSON.stringify(value);
+  return String(value);
+};
+
 const MyActivities = () => {
   const [activeTab, setActiveTab] = useState(FACULTY_MODULES[0].id);
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [selectedRow, setSelectedRow] = useState(null);
   const navigate = useNavigate();
 
   const loadActivities = async (moduleId) => {
@@ -101,12 +119,19 @@ const MyActivities = () => {
               {!loading && rows.map((row) => {
                 const entryId = getEntryId(row);
                 return (
-                  <tr key={entryId}>
+                  <tr
+                    key={entryId}
+                    className="cursor-pointer hover:bg-gray-50"
+                    onClick={() => setSelectedRow(row)}
+                  >
                     <td className="px-6 py-4 text-sm text-gray-900">{getEntryTitle(row)}</td>
                     <td className="px-6 py-4 text-sm text-gray-700">{getEntryYear(row)}</td>
                     <td className="px-6 py-4 text-right">
                       <button
-                        onClick={() => handleDelete(entryId)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDelete(entryId);
+                        }}
                         className="text-red-600 hover:text-red-800 text-sm font-medium"
                       >
                         Delete
@@ -135,6 +160,56 @@ const MyActivities = () => {
           </table>
         </div>
       </div>
+
+      {selectedRow && (
+        <div
+          className="fixed inset-0 z-50 bg-black/40 p-4 flex items-center justify-center"
+          onClick={() => setSelectedRow(null)}
+        >
+          <div
+            className="w-full max-w-2xl max-h-[85vh] overflow-hidden rounded-xl bg-white border border-gray-200 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="px-6 py-4 border-b border-gray-100 flex items-start justify-between gap-3">
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">Activity Details</h3>
+                <p className="text-sm text-gray-600 mt-1">{getEntryTitle(selectedRow)}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedRow(null)}
+                className="rounded-md px-2 py-1 text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+                aria-label="Close details"
+              >
+                X
+              </button>
+            </div>
+
+            <div className="px-6 py-4 overflow-y-auto max-h-[65vh]">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {Object.entries(selectedRow)
+                  .filter(([key, value]) => !HIDDEN_DETAIL_KEYS.has(key) && value !== null && value !== undefined && value !== '')
+                  .map(([key, value]) => (
+                    <div key={key} className="rounded-lg border border-gray-100 bg-gray-50 px-4 py-3">
+                      <p className="text-xs uppercase tracking-wide text-gray-500">{toLabel(key)}</p>
+                      <p className="mt-1 text-sm font-medium break-words text-gray-900">{formatDetailValue(value)}</p>
+                    </div>
+                  ))}
+              </div>
+            </div>
+
+            <div className="px-6 py-4 border-t border-gray-100 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setSelectedRow(null)}
+                className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

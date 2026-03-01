@@ -2,26 +2,14 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../supabase';
 import BlueLoader from '../components/BlueLoader';
 
-<<<<<<< Updated upstream
 const PAGE_SIZE = 8;
-=======
-const PAGE_SIZE = 5;
-const MODULES = ['journals', 'conferences', 'patents', 'research-funding'];
->>>>>>> Stashed changes
 
 const normalizeRole = (role) => (role || '').toString().trim().toUpperCase();
 const isFacultyRole = (role) => normalizeRole(role) !== 'ADMIN';
-<<<<<<< Updated upstream
 
 const toNumber = (value) => {
   const n = Number(value);
   return Number.isFinite(n) ? n : 0;
-=======
-const formatNumber = (value) => {
-  const num = Number(value || 0);
-  if (Number.isNaN(num)) return '0';
-  return num.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
->>>>>>> Stashed changes
 };
 
 const FacultyRanking = () => {
@@ -44,7 +32,6 @@ const FacultyRanking = () => {
           return;
         }
 
-<<<<<<< Updated upstream
         const [profilesResponse, journalsResponse, conferencesResponse, patentsResponse, fundingResponse] =
           await Promise.all([
             supabase.from('profiles').select('id, full_name, department, role'),
@@ -55,18 +42,6 @@ const FacultyRanking = () => {
           ]);
 
         const profiles = (profilesResponse?.data || []).filter((profile) => profile?.id && isFacultyRole(profile?.role));
-=======
-        const [profilesResponse, ...modulePayloads] = await Promise.all([
-          supabase.from('profiles').select('id, full_name, department, role'),
-          ...MODULES.map((module) =>
-            apiRequest(`/faculty/${module}`, {
-              token: session.access_token
-            })
-          )
-        ]);
-
-        const profiles = (profilesResponse?.data || []).filter((profile) => isFacultyRole(profile?.role));
->>>>>>> Stashed changes
 
         const counts = new Map();
         const bump = (profileId, field) => {
@@ -88,7 +63,6 @@ const FacultyRanking = () => {
             profileId: profile.id,
             name: profile.full_name || 'Unknown',
             department: profile.department || 'Unassigned',
-<<<<<<< Updated upstream
             publications: toNumber(profileCounts.publications),
             patents: toNumber(profileCounts.patents),
             grants: toNumber(profileCounts.grants),
@@ -102,54 +76,6 @@ const FacultyRanking = () => {
         });
 
         setRows(merged.map((row, index) => ({ ...row, rank: index + 1 })));
-=======
-            publications: 0,
-            grants: 0,
-            score: 0
-          });
-        });
-
-        MODULES.forEach((module, index) => {
-          (modulePayloads[index] || []).forEach((entry) => {
-            const profileId = getProfileId(entry);
-            if (!profileId) return;
-
-            if (!facultyMap.has(profileId)) {
-              facultyMap.set(profileId, {
-                profileId,
-                name: entry?.profiles?.full_name || 'Unknown',
-                department: entry?.profiles?.department || 'Unassigned',
-                publications: 0,
-                grants: 0,
-                score: 0
-              });
-            }
-
-            const current = facultyMap.get(profileId);
-            if (module === 'journals' || module === 'conferences') {
-              current.publications += 1;
-            }
-            if (module === 'research-funding') {
-              current.grants += 1;
-            }
-            current.score = current.publications + current.grants;
-            facultyMap.set(profileId, current);
-          });
-        });
-
-        const formattedRankings = [...facultyMap.values()]
-          .sort((a, b) => b.score - a.score)
-          .map((row, index) => ({
-            rank: index + 1,
-            name: row.name,
-            department: row.department,
-            publications: row.publications,
-            grants: row.grants,
-            score: formatNumber(row.score)
-          }));
-
-        setRankings(formattedRankings);
->>>>>>> Stashed changes
         setCurrentPage(1);
       } catch (err) {
         console.error('[FacultyRanking] Load failure:', err);
@@ -164,13 +90,11 @@ const FacultyRanking = () => {
     return () => clearInterval(interval);
   }, []);
 
-  // Filter rankings based on search query
   const filteredRankings = useMemo(() => {
     if (!searchQuery.trim()) return rows;
     const query = searchQuery.toLowerCase().trim();
-    return rows.filter(faculty => 
-      faculty.name.toLowerCase().includes(query) ||
-      faculty.department.toLowerCase().includes(query)
+    return rows.filter(
+      (faculty) => faculty.name.toLowerCase().includes(query) || faculty.department.toLowerCase().includes(query)
     );
   }, [rows, searchQuery]);
 
@@ -192,14 +116,15 @@ const FacultyRanking = () => {
     );
   }, [filteredRankings]);
 
-  // Reset to page 1 when search changes
   useEffect(() => {
     setCurrentPage(1);
   }, [searchQuery]);
 
   const downloadReport = () => {
     const headers = ['Rank', 'Name', 'Department', 'Publications', 'Patents', 'Grants', 'Total'];
-    const csvData = filteredRankings.map((r) => [r.rank, `"${r.name}"`, `"${r.department}"`, r.publications, r.patents, r.grants, r.total].join(','));
+    const csvData = filteredRankings.map((r) =>
+      [r.rank, `"${r.name}"`, `"${r.department}"`, r.publications, r.patents, r.grants, r.total].join(',')
+    );
     const csvContent = [headers.join(','), ...csvData].join('\n');
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -219,11 +144,7 @@ const FacultyRanking = () => {
       <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Faculty Ranking</h1>
-<<<<<<< Updated upstream
           <p className="text-sm text-gray-500 mt-1">Ranked by total activity submissions.</p>
-=======
-          <p className="text-sm text-gray-500 mt-1">Live leaderboard based on total activities.</p>
->>>>>>> Stashed changes
         </div>
         <div className="flex w-full sm:w-auto space-x-3">
           <button
@@ -243,13 +164,8 @@ const FacultyRanking = () => {
           <p className="text-2xl font-bold text-gray-900 mt-2">{filteredRankings.length}</p>
         </div>
         <div className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm">
-<<<<<<< Updated upstream
           <p className="text-xs uppercase tracking-wider text-gray-500 font-semibold">Total Submissions</p>
           <p className="text-2xl font-bold text-blue-700 mt-2">{totals.total}</p>
-=======
-          <p className="text-xs uppercase tracking-wider text-gray-500 font-semibold">Average Score</p>
-          <p className="text-2xl font-bold text-blue-700 mt-2">{formatNumber(averageScore)}</p>
->>>>>>> Stashed changes
         </div>
         <div className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm">
           <p className="text-xs uppercase tracking-wider text-gray-500 font-semibold">Publications</p>
@@ -261,7 +177,6 @@ const FacultyRanking = () => {
         </div>
       </div>
 
-      {/* Search Bar */}
       <div className="mb-6">
         <div className="relative max-w-md">
           <input
@@ -271,10 +186,10 @@ const FacultyRanking = () => {
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 pl-10 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
-          <svg 
+          <svg
             className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400"
-            fill="none" 
-            viewBox="0 0 24 24" 
+            fill="none"
+            viewBox="0 0 24 24"
             stroke="currentColor"
           >
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -349,7 +264,9 @@ const FacultyRanking = () => {
 
         {filteredRankings.length === 0 && (
           <div className="p-12 text-center text-gray-500">
-            {searchQuery ? `No faculty found matching "${searchQuery}"` : 'No faculty data available. Ensure the admin account has access to profiles and activity tables in Supabase.'}
+            {searchQuery
+              ? `No faculty found matching "${searchQuery}"`
+              : 'No faculty data available. Ensure the admin account has access to profiles and activity tables in Supabase.'}
           </div>
         )}
 

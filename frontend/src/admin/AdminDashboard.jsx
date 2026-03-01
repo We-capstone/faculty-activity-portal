@@ -4,7 +4,6 @@ import { supabase } from '../supabase';
 import { apiRequest } from '../apiClient';
 import BlueLoader from '../components/BlueLoader';
 
-<<<<<<< Updated upstream
 const toNumber = (value) => {
   const num = Number(value);
   return Number.isFinite(num) ? num : 0;
@@ -12,14 +11,6 @@ const toNumber = (value) => {
 
 const normalizeRole = (role) => (role || '').toString().trim().toUpperCase();
 const isFacultyRole = (role) => normalizeRole(role) !== 'ADMIN';
-=======
-const MODULES = [
-  { id: 'journals', label: 'Journal Publication' },
-  { id: 'conferences', label: 'Conference Publication' },
-  { id: 'patents', label: 'Patent' },
-  { id: 'research-funding', label: 'Research Funding' }
-];
->>>>>>> Stashed changes
 
 const QUICK_LINKS = [
   {
@@ -31,18 +22,12 @@ const QUICK_LINKS = [
   {
     to: '/admin/analytics',
     title: 'Department Analytics',
-<<<<<<< Updated upstream
     description: 'Compare department research output over time',
-=======
-    description: 'Review research volume and trends',
->>>>>>> Stashed changes
     icon: 'analytics'
   }
 ];
 
 const QuickLinkIcon = ({ icon }) => {
-<<<<<<< Updated upstream
-=======
   if (icon === 'ranking') {
     return (
       <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5" stroke="currentColor" strokeWidth="1.8">
@@ -54,7 +39,6 @@ const QuickLinkIcon = ({ icon }) => {
     );
   }
 
->>>>>>> Stashed changes
   return (
     <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5" stroke="currentColor" strokeWidth="1.8">
       <path d="M3 3v18h18" strokeLinecap="round" />
@@ -81,7 +65,6 @@ const AdminDashboard = () => {
           return;
         }
 
-<<<<<<< Updated upstream
         const [analyticsPayload, profilesResponse] = await Promise.all([
           apiRequest('/analytics/stats', { token: session.access_token }),
           supabase.from('profiles').select('id, role, department')
@@ -91,16 +74,9 @@ const AdminDashboard = () => {
         const facultyCount = profiles.filter((profile) => isFacultyRole(profile?.role)).length;
 
         const deptVolume = Array.isArray(analyticsPayload?.deptVolume) ? analyticsPayload.deptVolume : [];
-        const yearlyGrowth = Array.isArray(analyticsPayload?.yearlyGrowth) ? analyticsPayload.yearlyGrowth : [];
-
         const totalSubmissions = deptVolume.reduce((sum, row) => sum + toNumber(row?.total), 0);
         const activeDepartments = deptVolume.length;
-        const moduleTotals = {
-          journals: 0,
-          conferences: 0,
-          patents: 0,
-          funding: 0
-        };
+        const moduleTotals = { journals: 0, conferences: 0, patents: 0, funding: 0 };
         deptVolume.forEach((row) => {
           moduleTotals.journals += toNumber(row?.journals);
           moduleTotals.conferences += toNumber(row?.conferences);
@@ -114,43 +90,6 @@ const AdminDashboard = () => {
           { label: 'Total Submissions', value: totalSubmissions, icon: 'TS', color: 'bg-green-500' },
           { label: 'Active Departments', value: activeDepartments, icon: 'AD', color: 'bg-indigo-500' },
           { label: 'Active Modules', value: activeModules, icon: 'AM', color: 'bg-slate-700' }
-=======
-        const [analytics, profilesResponse, ...moduleRows] = await Promise.all([
-          apiRequest('/analytics/stats', { token: session.access_token }),
-          supabase.from('profiles').select('id, role'),
-          ...MODULES.map((module) => apiRequest(`/faculty/${module.id}`, { token: session.access_token }))
-        ]);
-
-        const allActivities = MODULES.flatMap((module, index) =>
-          (moduleRows[index] || []).map((entry) => ({
-            ...entry,
-            module: module.id,
-            type: module.label
-          }))
-        );
-
-        const currentYear = new Date().getFullYear();
-        const yearlySubmissions = allActivities.filter((entry) => {
-          const yearValue = entry.year || entry.created_at || entry.publication_date || entry.conference_date;
-          const parsed = new Date(yearValue);
-          return !Number.isNaN(parsed.getTime()) && parsed.getFullYear() === currentYear;
-        }).length;
-
-        const profiles = Array.isArray(profilesResponse?.data) ? profilesResponse.data : [];
-        const facultyCount = profiles.filter((profile) => (profile?.role || 'FACULTY').toUpperCase() === 'FACULTY').length;
-
-        const activeModules = new Set(allActivities.map((item) => item.module)).size;
-
-        const sortedActivities = allActivities
-          .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))
-          .slice(0, 5);
-
-        setStats([
-          { label: 'Total Faculty', value: facultyCount, icon: 'TF', color: 'bg-blue-500' },
-          { label: 'Total Submissions', value: allActivities.length, icon: 'TS', color: 'bg-green-500' },
-          { label: 'Modules Active', value: activeModules, icon: 'MA', color: 'bg-indigo-500' },
-          { label: 'This Year', value: yearlySubmissions, icon: 'YR', color: 'bg-yellow-500' }
->>>>>>> Stashed changes
         ]);
 
         setTopDepartments(deptVolume.slice(0, 5));
@@ -208,12 +147,9 @@ const AdminDashboard = () => {
                   <p className="text-sm font-semibold text-gray-900 truncate">{dept.department || 'Unassigned'}</p>
                   <p className="text-xs text-gray-400">Total submissions</p>
                 </div>
-<<<<<<< Updated upstream
                 <span className="shrink-0 inline-flex items-center rounded-full bg-blue-50 px-3 py-1 text-blue-700 font-bold">
                   {toNumber(dept.total)}
                 </span>
-=======
->>>>>>> Stashed changes
               </div>
             ))}
             {topDepartments.length === 0 && <p className="text-center text-gray-500 py-4">No department data available</p>}

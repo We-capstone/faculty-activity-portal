@@ -10,8 +10,7 @@ const Dashboard = () => {
   const [stats, setStats] = useState({
     total: 0,
     modules: 0,
-    recent: 0,
-    score: 0
+    recent: 0
   });
   const [activities, setActivities] = useState([]);
 
@@ -50,25 +49,10 @@ const Dashboard = () => {
         }).length;
         const activeModules = new Set(allActivities.map((item) => item.module)).size;
 
-        let dashboardData = null;
-        try {
-          dashboardData = await apiRequest('/dashboard/faculty', { token: session.access_token });
-        } catch {
-          dashboardData = null;
-        }
-
-        const score = Number(
-          dashboardData?.overallScore ||
-            dashboardData?.score ||
-            dashboardData?.careerScore ||
-            0
-        );
-
         setStats({
           total: allActivities.length,
           modules: activeModules,
-          recent: recentCount,
-          score: Number.isFinite(score) ? score.toFixed(2) : '0.00'
+          recent: recentCount
         });
 
         const recent = allActivities
@@ -90,7 +74,7 @@ const Dashboard = () => {
     <div className="space-y-8">
       {error && <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
         <div className="bg-white p-5 sm:p-6 rounded-xl shadow-sm border border-gray-100">
           <h3 className="text-gray-500 text-sm font-medium">Total Activities</h3>
           <p className="text-3xl font-bold mt-2">{loading ? '-' : stats.total}</p>
@@ -102,10 +86,6 @@ const Dashboard = () => {
         <div className="bg-white p-5 sm:p-6 rounded-xl shadow-sm border border-gray-100">
           <h3 className="text-gray-500 text-sm font-medium">Recent (30 days)</h3>
           <p className="text-3xl font-bold mt-2 text-yellow-600">{loading ? '-' : stats.recent}</p>
-        </div>
-        <div className="bg-white p-5 sm:p-6 rounded-xl shadow-sm border border-gray-100">
-          <h3 className="text-gray-500 text-sm font-medium">Performance Score</h3>
-          <p className="text-3xl font-bold mt-2 text-indigo-600">{loading ? '-' : stats.score}</p>
         </div>
       </div>
 

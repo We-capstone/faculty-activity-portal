@@ -2,13 +2,80 @@ import React, { useState, useRef, useEffect } from "react";
 import { supabase } from "./supabase.js";
 import axios from "axios";
 
+const toLabel = (key) =>
+  String(key || "")
+    .replace(/_/g, " ")
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+
+const formatValue = (value) => {
+  if (value === null || value === undefined || value === "") return "N/A";
+  if (typeof value === "boolean") return value ? "Yes" : "No";
+  if (typeof value === "object") return null;
+  return String(value);
+};
+
+const renderObjectFields = (obj) => (
+  <div
+    style={{
+      border: "1px solid #E5E7EB",
+      borderRadius: "8px",
+      padding: "10px",
+      background: "#F9FAFB"
+    }}
+  >
+    {Object.entries(obj).map(([key, value]) => {
+      const primitiveValue = formatValue(value);
+      if (primitiveValue === null) return null;
+      return (
+        <div key={key} style={{ marginBottom: "6px", lineHeight: 1.4 }}>
+          <strong>{toLabel(key)}:</strong> {primitiveValue}
+        </div>
+      );
+    })}
+  </div>
+);
+
+const renderStructuredResult = (result) => {
+  if (Array.isArray(result)) {
+    if (result.length === 0) return <div>No records found.</div>;
+
+    if (result.every((entry) => typeof entry !== "object" || entry === null)) {
+      return (
+        <ul style={{ margin: 0, paddingLeft: "18px" }}>
+          {result.map((entry, index) => (
+            <li key={index}>{formatValue(entry)}</li>
+          ))}
+        </ul>
+      );
+    }
+
+    return (
+      <div>
+        {result.map((entry, index) => (
+          <div key={index} style={{ marginBottom: "8px" }}>
+            {renderObjectFields(entry)}
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (result && typeof result === "object") {
+    return renderObjectFields(result);
+  }
+
+  return <div>{formatValue(result)}</div>;
+};
+
 const FloatingChatbot = () => {
   const [open, setOpen] = useState(false);
   const [question, setQuestion] = useState("");
   const [messages, setMessages] = useState([]);
   const messagesEndRef = useRef(null);
 
-  // Scroll to bottom when new message arrives
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
@@ -16,15 +83,19 @@ const FloatingChatbot = () => {
   const askBot = async () => {
     if (!question.trim()) return;
 
-    // Add user message
     const userMsg = { sender: "user", text: question };
-    setMessages(prev => [...prev, userMsg]);
+    setMessages((prev) => [...prev, userMsg]);
 
     try {
-      // 🔐 Get logged-in session
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session }
+      } = await supabase.auth.getSession();
 
-      // POST to backend
+      if (!session?.access_token) {
+        setMessages((prev) => [...prev, { sender: "bot", text: "Please log in again to continue." }]);
+        return;
+      }
+
       const res = await axios.post(
         "http://localhost:5000/api/chatbot/ask",
         { question },
@@ -35,20 +106,21 @@ const FloatingChatbot = () => {
         }
       );
 
-      // Backend returns: { sql, result }
-      const botText = res.data.result
-        ? JSON.stringify(res.data.result, null, 2) // nicely formatted
-        : res.data.message || "No response";
+      const hasStructuredResult = Object.prototype.hasOwnProperty.call(res.data || {}, "result");
+      const botMsg = hasStructuredResult
+        ? { sender: "bot", result: res.data.result }
+        : { sender: "bot", text: res.data?.message || "No response" };
 
-      const botMsg = { sender: "bot", text: botText };
-      setMessages(prev => [...prev, botMsg]);
-
+      setMessages((prev) => [...prev, botMsg]);
     } catch (err) {
-      console.log("CHATBOT ERROR:", err.response?.data || err.message);
-      setMessages(prev => [
-        ...prev,
-        { sender: "bot", text: "Error: " + JSON.stringify(err.response?.data || err.message) }
-      ]);
+      const errorPayload = err.response?.data;
+      const errorText =
+        errorPayload?.message ||
+        errorPayload?.error ||
+        err.message ||
+        "Unable to process your request.";
+
+      setMessages((prev) => [...prev, { sender: "bot", text: `Error: ${errorText}` }]);
     }
 
     setQuestion("");
@@ -56,7 +128,6 @@ const FloatingChatbot = () => {
 
   return (
     <>
-      {/* Floating Button */}
       <div
         onClick={() => setOpen(!open)}
         style={{
@@ -71,7 +142,8 @@ const FloatingChatbot = () => {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          fontSize: "24px",
+          fontSize: "18px",
+          fontWeight: 700,
           cursor: "pointer",
           boxShadow: "0px 4px 12px rgba(0,0,0,0.2)",
           zIndex: 999
@@ -80,15 +152,15 @@ const FloatingChatbot = () => {
         🤖
       </div>
 
-      {/* Chat Window */}
       {open && (
         <div
           style={{
             position: "fixed",
             bottom: "90px",
             right: "20px",
-            width: "320px",
-            height: "420px",
+            width: "380px",
+            maxWidth: "calc(100vw - 24px)",
+            height: "460px",
             background: "white",
             borderRadius: "12px",
             boxShadow: "0px 4px 20px rgba(0,0,0,0.2)",
@@ -97,7 +169,6 @@ const FloatingChatbot = () => {
             zIndex: 999
           }}
         >
-          {/* Header */}
           <div
             style={{
               padding: "12px",
@@ -110,64 +181,63 @@ const FloatingChatbot = () => {
             Faculty Assistant
           </div>
 
-          {/* Messages */}
           <div style={{ flex: 1, padding: "10px", overflowY: "auto" }}>
-  {messages.map((msg, i) => (
-    <div key={i} style={{ marginBottom: "8px" }}>
-      {msg.sender === "user" ? (
-        <div style={{ textAlign: "right" }}>
-          <span style={{
-            display: "inline-block",
-            padding: "8px",
-            borderRadius: "8px",
-            background: "#E0E7FF"
-          }}>
-            {msg.text}
-          </span>
-        </div>
-      ) : (
-        <div style={{ textAlign: "left" }}>
-          {msg.data ? (
-            // Render array of journals as cards
-            msg.data.map((item, idx) => (
-              <div key={idx} style={{
-                border: "1px solid #ddd",
-                borderRadius: "8px",
-                padding: "8px",
-                marginBottom: "6px",
-                background: "#F3F4F6"
-              }}>
-                <strong>Title:</strong> {item.title} <br/>
-                <strong>Journal:</strong> {item.journal_name} <br/>
-                <strong>Indexing:</strong> {item.indexing_details || "N/A"} <br/>
-                <strong>Publication Date:</strong> {item.publication_date}
+            {messages.map((msg, i) => (
+              <div key={i} style={{ marginBottom: "8px" }}>
+                {msg.sender === "user" ? (
+                  <div style={{ textAlign: "right" }}>
+                    <span
+                      style={{
+                        display: "inline-block",
+                        padding: "8px",
+                        borderRadius: "8px",
+                        background: "#E0E7FF"
+                      }}
+                    >
+                      {msg.text}
+                    </span>
+                  </div>
+                ) : (
+                  <div style={{ textAlign: "left" }}>
+                    {Object.prototype.hasOwnProperty.call(msg, "result") ? (
+                      <div
+                        style={{
+                          display: "inline-block",
+                          padding: "8px",
+                          borderRadius: "8px",
+                          background: "#F3F4F6",
+                          maxWidth: "100%",
+                          overflowX: "auto"
+                        }}
+                      >
+                        {renderStructuredResult(msg.result)}
+                      </div>
+                    ) : (
+                      <span
+                        style={{
+                          display: "inline-block",
+                          padding: "8px",
+                          borderRadius: "8px",
+                          background: "#F3F4F6"
+                        }}
+                      >
+                        {msg.text}
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
-            ))
-          ) : (
-            <span style={{
-              display: "inline-block",
-              padding: "8px",
-              borderRadius: "8px",
-              background: "#F3F4F6"
-            }}>
-              {msg.text}
-            </span>
-          )}
-        </div>
-      )}
-    </div>
-  ))}
-  <div ref={messagesEndRef} />
-</div>
+            ))}
+            <div ref={messagesEndRef} />
+          </div>
 
-          {/* Input */}
-          <div style={{ display: "flex", padding: "10px" }}>
+          <div style={{ display: "flex", padding: "10px", gap: "8px" }}>
             <input
               value={question}
-              onChange={e => setQuestion(e.target.value)}
+              onChange={(e) => setQuestion(e.target.value)}
               placeholder="Ask something..."
               style={{ flex: 1, padding: "8px" }}
-              onKeyDown={e => e.key === "Enter" && askBot()}
+              onKeyDown={(e) => e.key === "Enter" && askBot()}
             />
             <button onClick={askBot}>Send</button>
           </div>
