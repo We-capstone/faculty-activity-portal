@@ -96,12 +96,12 @@ const Dashboard = () => {
             <Link
               key={module.id}
               to={`/faculty/add-activity?type=${module.id}`}
-              className="p-5 sm:p-6 border border-gray-100 rounded-xl hover:shadow-md hover:border-indigo-100 transition-all text-center group"
+              className="quick-action-card p-5 sm:p-6 text-center group"
             >
-              <div className="bg-indigo-600 text-white w-12 h-12 rounded-lg flex items-center justify-center text-xl mx-auto mb-4 group-hover:scale-110 transition-transform">
+              <div className="quick-action-icon w-12 h-12 rounded-lg flex items-center justify-center text-xl mx-auto mb-4">
                 +
               </div>
-              <span className="text-sm font-semibold text-gray-700">Add {module.label}</span>
+              <span className="quick-action-label text-sm font-semibold">Add {module.label}</span>
             </Link>
           ))}
         </div>

@@ -158,7 +158,7 @@ const DepartmentAnalytics = () => {
       </div>
 
       {topDeptOpen && topDeptRow ? (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" role="dialog" aria-modal="true">
+        <div className="theme-overlay fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
           <div className="w-full max-w-lg rounded-2xl bg-white border border-gray-200 shadow-xl overflow-hidden">
             <div className="p-5 border-b border-gray-100 flex items-start justify-between gap-4">
               <div className="min-w-0">

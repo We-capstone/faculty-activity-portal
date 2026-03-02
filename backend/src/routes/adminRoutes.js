@@ -1,8 +1,7 @@
 import express from 'express';
-import { getApprovals } from '../controllers/adminController.js';
+import { getApprovals, handleStatusUpdate, searchFacultyAchievements } from '../controllers/adminController.js';
 import { authenticate } from '../middleware/authMiddleware.js';
 import { isAdmin } from '../middleware/authMiddleware.js';
-import { handleStatusUpdate } from '../controllers/adminController.js';
 
 const router = express.Router();
 
@@ -15,6 +14,7 @@ router.use(isAdmin);
 // GET /admin/approvals?module=journals (Specific module)
 // GET /admin/approvals?status=APPROVED (History view)
 router.get('/approvals', getApprovals);
+router.get('/faculty-achievements', searchFacultyAchievements);
 router.patch('/:module/:id/status', handleStatusUpdate);
 
 export default router;

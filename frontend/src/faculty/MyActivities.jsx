@@ -163,7 +163,7 @@ const MyActivities = () => {
 
       {selectedRow && (
         <div
-          className="fixed inset-0 z-50 bg-black/40 p-4 flex items-center justify-center"
+          className="theme-overlay fixed inset-0 z-50 p-4 flex items-center justify-center"
           onClick={() => setSelectedRow(null)}
         >
           <div

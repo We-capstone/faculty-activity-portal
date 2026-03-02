@@ -8,6 +8,115 @@ const TABLE_MAP = {
   research_funding: 'research_funding'
 };
 
+const ACHIEVEMENT_MODULES = [
+  {
+    key: 'journals',
+    table: 'journal_publications',
+    select: 'journal_id, title, journal_name, publication_date, status'
+  },
+  {
+    key: 'conferences',
+    table: 'conference_publications',
+    select: 'conference_id, title, conference_name, conference_date, status'
+  },
+  {
+    key: 'patents',
+    table: 'patents',
+    select: 'patent_id, patent_title, application_no, patent_status, filed_date, status'
+  },
+  {
+    key: 'funding',
+    table: 'research_funding',
+    select: 'funding_id, project_title, funding_agency, amount, start_date, end_date, status'
+  }
+];
+
+const normalizeName = (value) => (value || '').toString().trim().replace(/\s+/g, ' ').toLowerCase();
+
+const pickBestFacultyMatch = (profiles, inputName) => {
+  if (!Array.isArray(profiles) || profiles.length === 0) return null;
+  const normalizedInput = normalizeName(inputName);
+
+  const exactMatch = profiles.find((profile) => normalizeName(profile?.full_name) === normalizedInput);
+  if (exactMatch) return exactMatch;
+
+  return profiles[0];
+};
+
+export const searchFacultyAchievements = async (req, res) => {
+  try {
+    const name = typeof req.query.name === 'string' ? req.query.name.trim() : '';
+    if (!name) {
+      return res.status(400).json({ error: 'Faculty name is required', code: 'NAME_REQUIRED' });
+    }
+
+    const { data: profiles, error: profileError } = await supabase
+      .from('profiles')
+      .select('id, full_name, department, role')
+      .ilike('full_name', `%${name}%`);
+
+    if (profileError) throw profileError;
+
+    const facultyProfiles = (profiles || []).filter((profile) => (profile?.role || '').toString().trim().toUpperCase() !== 'ADMIN');
+    const selectedProfile = pickBestFacultyMatch(facultyProfiles, name);
+
+    if (!selectedProfile) {
+      return res.status(404).json({
+        error: `No faculty found for "${name}".`,
+        code: 'FACULTY_NOT_FOUND'
+      });
+    }
+
+    console.log('[searchFacultyAchievements] matched faculty:', {
+      id: selectedProfile.id,
+      full_name: selectedProfile.full_name,
+      department: selectedProfile.department
+    });
+
+    const moduleEntries = await Promise.all(
+      ACHIEVEMENT_MODULES.map(async (moduleConfig) => {
+        const { data, error } = await supabase
+          .from(moduleConfig.table)
+          .select(moduleConfig.select)
+          .eq('profile_id', selectedProfile.id)
+          .order('created_at', { ascending: false });
+
+        if (error) throw new Error(error.message || `Failed to fetch ${moduleConfig.key}`);
+        return [moduleConfig.key, data || []];
+      })
+    );
+
+    const achievements = Object.fromEntries(moduleEntries);
+    const counts = {
+      journals: achievements.journals.length,
+      conferences: achievements.conferences.length,
+      patents: achievements.patents.length,
+      funding: achievements.funding.length
+    };
+    const total = counts.journals + counts.conferences + counts.patents + counts.funding;
+
+    if (total === 0) {
+      return res.status(404).json({
+        error: `No achievements found for "${selectedProfile.full_name || name}".`,
+        code: 'NO_ACHIEVEMENTS'
+      });
+    }
+
+    return res.status(200).json({
+      profile: {
+        id: selectedProfile.id,
+        full_name: selectedProfile.full_name || 'Unknown',
+        department: selectedProfile.department || 'Unassigned'
+      },
+      achievements,
+      counts,
+      total
+    });
+  } catch (err) {
+    return res.status(500).json({ error: err.message || 'Unable to fetch faculty achievements' });
+  }
+};
+
 export const getApprovals = async (req, res) => {
   try {
     const { module, status = 'PENDING', search } = req.query;

@@ -1,6 +1,6 @@
-import React, { useState, useRef, useEffect } from "react";
-import { supabase } from "./supabase.js";
+import React, { useEffect, useRef, useState } from "react";
 import axios from "axios";
+import { supabase } from "./supabase.js";
 
 const toLabel = (key) =>
   String(key || "")
@@ -18,19 +18,12 @@ const formatValue = (value) => {
 };
 
 const renderObjectFields = (obj) => (
-  <div
-    style={{
-      border: "1px solid #E5E7EB",
-      borderRadius: "8px",
-      padding: "10px",
-      background: "#F9FAFB"
-    }}
-  >
+  <div className="chatbot-structured-block">
     {Object.entries(obj).map(([key, value]) => {
       const primitiveValue = formatValue(value);
       if (primitiveValue === null) return null;
       return (
-        <div key={key} style={{ marginBottom: "6px", lineHeight: 1.4 }}>
+        <div key={key} className="mb-1.5 leading-[1.4] text-sm text-[var(--text-primary)] last:mb-0">
           <strong>{toLabel(key)}:</strong> {primitiveValue}
         </div>
       );
@@ -40,11 +33,11 @@ const renderObjectFields = (obj) => (
 
 const renderStructuredResult = (result) => {
   if (Array.isArray(result)) {
-    if (result.length === 0) return <div>No records found.</div>;
+    if (result.length === 0) return <div className="text-sm text-[var(--text-secondary)]">No records found.</div>;
 
     if (result.every((entry) => typeof entry !== "object" || entry === null)) {
       return (
-        <ul style={{ margin: 0, paddingLeft: "18px" }}>
+        <ul className="m-0 list-disc pl-[18px] text-sm text-[var(--text-primary)]">
           {result.map((entry, index) => (
             <li key={index}>{formatValue(entry)}</li>
           ))}
@@ -53,22 +46,26 @@ const renderStructuredResult = (result) => {
     }
 
     return (
-      <div>
+      <div className="space-y-2">
         {result.map((entry, index) => (
-          <div key={index} style={{ marginBottom: "8px" }}>
-            {renderObjectFields(entry)}
-          </div>
+          <div key={index}>{renderObjectFields(entry)}</div>
         ))}
       </div>
     );
   }
 
-  if (result && typeof result === "object") {
-    return renderObjectFields(result);
-  }
-
-  return <div>{formatValue(result)}</div>;
+  if (result && typeof result === "object") return renderObjectFields(result);
+  return <div className="text-sm text-[var(--text-primary)]">{formatValue(result)}</div>;
 };
+
+const botIcon = (
+  <svg viewBox="0 0 24 24" fill="none" className="h-6 w-6" stroke="currentColor" strokeWidth="1.8">
+    <rect x="5" y="8" width="14" height="11" rx="2" />
+    <circle cx="9.5" cy="13.5" r="1" fill="currentColor" />
+    <circle cx="14.5" cy="13.5" r="1" fill="currentColor" />
+    <path d="M12 4v2M8 20h8" strokeLinecap="round" />
+  </svg>
+);
 
 const FloatingChatbot = () => {
   const [open, setOpen] = useState(false);
@@ -96,30 +93,23 @@ const FloatingChatbot = () => {
         return;
       }
 
-      const res = await axios.post(
+      const response = await axios.post(
         "http://localhost:5000/api/chatbot/ask",
         { question },
         {
-          headers: {
-            Authorization: `Bearer ${session.access_token}`
-          }
+          headers: { Authorization: `Bearer ${session.access_token}` }
         }
       );
 
-      const hasStructuredResult = Object.prototype.hasOwnProperty.call(res.data || {}, "result");
+      const hasStructuredResult = Object.prototype.hasOwnProperty.call(response.data || {}, "result");
       const botMsg = hasStructuredResult
-        ? { sender: "bot", result: res.data.result }
-        : { sender: "bot", text: res.data?.message || "No response" };
+        ? { sender: "bot", result: response.data.result }
+        : { sender: "bot", text: response.data?.message || "No response" };
 
       setMessages((prev) => [...prev, botMsg]);
-    } catch (err) {
-      const errorPayload = err.response?.data;
-      const errorText =
-        errorPayload?.message ||
-        errorPayload?.error ||
-        err.message ||
-        "Unable to process your request.";
-
+    } catch (error) {
+      const errorPayload = error.response?.data;
+      const errorText = errorPayload?.message || errorPayload?.error || error.message || "Unable to process your request.";
       setMessages((prev) => [...prev, { sender: "bot", text: `Error: ${errorText}` }]);
     }
 
@@ -128,101 +118,31 @@ const FloatingChatbot = () => {
 
   return (
     <>
-      <div
-        onClick={() => setOpen(!open)}
-        style={{
-          position: "fixed",
-          bottom: "20px",
-          right: "20px",
-          background: "#4F46E5",
-          color: "white",
-          borderRadius: "50%",
-          width: "60px",
-          height: "60px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          fontSize: "18px",
-          fontWeight: 700,
-          cursor: "pointer",
-          boxShadow: "0px 4px 12px rgba(0,0,0,0.2)",
-          zIndex: 999
-        }}
+      <button
+        onClick={() => setOpen((value) => !value)}
+        className="chatbot-fab"
+        aria-label="Toggle chatbot"
       >
-        🤖
-      </div>
+        {botIcon}
+      </button>
 
-      {open && (
-        <div
-          style={{
-            position: "fixed",
-            bottom: "90px",
-            right: "20px",
-            width: "380px",
-            maxWidth: "calc(100vw - 24px)",
-            height: "460px",
-            background: "white",
-            borderRadius: "12px",
-            boxShadow: "0px 4px 20px rgba(0,0,0,0.2)",
-            display: "flex",
-            flexDirection: "column",
-            zIndex: 999
-          }}
-        >
-          <div
-            style={{
-              padding: "12px",
-              background: "#4F46E5",
-              color: "white",
-              borderTopLeftRadius: "12px",
-              borderTopRightRadius: "12px"
-            }}
-          >
-            Faculty Assistant
-          </div>
+      {open ? (
+        <div className="chatbot-panel">
+          <div className="chatbot-header">Faculty Assistant</div>
 
-          <div style={{ flex: 1, padding: "10px", overflowY: "auto" }}>
-            {messages.map((msg, i) => (
-              <div key={i} style={{ marginBottom: "8px" }}>
+          <div className="chatbot-scroll">
+            {messages.map((msg, index) => (
+              <div key={index} className="mb-2">
                 {msg.sender === "user" ? (
-                  <div style={{ textAlign: "right" }}>
-                    <span
-                      style={{
-                        display: "inline-block",
-                        padding: "8px",
-                        borderRadius: "8px",
-                        background: "#E0E7FF"
-                      }}
-                    >
-                      {msg.text}
-                    </span>
+                  <div className="text-right">
+                    <span className="chatbot-bubble-user">{msg.text}</span>
                   </div>
                 ) : (
-                  <div style={{ textAlign: "left" }}>
+                  <div className="text-left">
                     {Object.prototype.hasOwnProperty.call(msg, "result") ? (
-                      <div
-                        style={{
-                          display: "inline-block",
-                          padding: "8px",
-                          borderRadius: "8px",
-                          background: "#F3F4F6",
-                          maxWidth: "100%",
-                          overflowX: "auto"
-                        }}
-                      >
-                        {renderStructuredResult(msg.result)}
-                      </div>
+                      <div className="chatbot-bubble-bot max-w-full overflow-x-auto">{renderStructuredResult(msg.result)}</div>
                     ) : (
-                      <span
-                        style={{
-                          display: "inline-block",
-                          padding: "8px",
-                          borderRadius: "8px",
-                          background: "#F3F4F6"
-                        }}
-                      >
-                        {msg.text}
-                      </span>
+                      <span className="chatbot-bubble-bot">{msg.text}</span>
                     )}
                   </div>
                 )}
@@ -231,18 +151,20 @@ const FloatingChatbot = () => {
             <div ref={messagesEndRef} />
           </div>
 
-          <div style={{ display: "flex", padding: "10px", gap: "8px" }}>
+          <div className="chatbot-footer">
             <input
               value={question}
-              onChange={(e) => setQuestion(e.target.value)}
+              onChange={(event) => setQuestion(event.target.value)}
               placeholder="Ask something..."
-              style={{ flex: 1, padding: "8px" }}
-              onKeyDown={(e) => e.key === "Enter" && askBot()}
+              className="chatbot-input"
+              onKeyDown={(event) => event.key === "Enter" && askBot()}
             />
-            <button onClick={askBot}>Send</button>
+            <button onClick={askBot} className="chatbot-send">
+              Send
+            </button>
           </div>
         </div>
-      )}
+      ) : null}
     </>
   );
 };

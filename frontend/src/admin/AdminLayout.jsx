@@ -1,7 +1,20 @@
 import React from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { supabase } from '../supabase';
+import ThemeToggle from '../components/ThemeToggle';
 import FloatingChatbot from '../Chatbot';
+import { supabase } from '../supabase';
+
+const navItems = [
+  { name: 'Dashboard', path: '/admin' },
+  { name: 'Department Analytics', path: '/admin/analytics' }
+];
+
+const logoutIcon = (
+  <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5" stroke="currentColor" strokeWidth="1.8">
+    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" strokeLinecap="round" />
+    <path d="m16 17 5-5-5-5M21 12H9" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
 
 const AdminLayout = () => {
   const location = useLocation();
@@ -18,22 +31,17 @@ const AdminLayout = () => {
 
   React.useEffect(() => {
     const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session }
+      } = await supabase.auth.getSession();
       if (!session) {
-        navigate('/', { replace: true });
+        navigate('/login', { replace: true });
         return;
       }
 
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role, full_name')
-        .eq('id', session.user.id)
-        .single();
-
+      const { data: profile } = await supabase.from('profiles').select('role, full_name').eq('id', session.user.id).single();
       const role = profile?.role || session.user.user_metadata?.role;
-      if (role !== 'ADMIN') {
-        navigate('/faculty', { replace: true });
-      }
+      if (role !== 'ADMIN') navigate('/faculty', { replace: true });
 
       setAdminInfo({
         name: profile?.full_name || session.user.user_metadata?.full_name || 'Admin User',
@@ -41,6 +49,7 @@ const AdminLayout = () => {
         email: session.user.email || ''
       });
     };
+
     checkSession();
   }, [navigate]);
 
@@ -65,52 +74,43 @@ const AdminLayout = () => {
       await supabase.auth.signOut();
       localStorage.clear();
       sessionStorage.clear();
-      // Use window.location.href for a clean state reset on logout
-      window.location.href = '/';
+      window.location.href = '/login';
     } catch (error) {
       console.error('Logout error:', error);
-      window.location.href = '/';
+      window.location.href = '/login';
     }
   };
 
-  const navItems = [
-    { name: 'Dashboard', path: '/admin' },
-    { name: 'Department Analytics', path: '/admin/analytics' },
-  ];
-
   return (
-    <div className="flex min-h-screen lg:h-screen bg-gray-50 lg:overflow-hidden">
-      {mobileMenuOpen && (
+    <div className="app-shell-bg flex min-h-screen lg:h-screen lg:overflow-hidden">
+      {mobileMenuOpen ? (
         <button
           type="button"
           aria-label="Close navigation"
-          className="fixed inset-0 z-30 bg-black/40 lg:hidden"
+          className="theme-overlay fixed inset-0 z-30 lg:hidden"
           onClick={() => setMobileMenuOpen(false)}
         />
-      )}
+      ) : null}
 
-      {/* Sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 z-40 w-72 max-w-[85vw] bg-slate-900 text-white flex flex-col h-screen shrink-0 transform transition-transform duration-200 lg:sticky lg:top-0 lg:w-64 lg:max-w-none lg:translate-x-0 ${
+        className={`app-sidebar fixed inset-y-0 left-0 z-40 flex h-screen w-72 max-w-[85vw] shrink-0 flex-col transition-transform duration-200 lg:sticky lg:top-0 lg:w-64 lg:max-w-none lg:translate-x-0 ${
           mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        <div className="p-6 border-b border-slate-800">
+        <div className="sidebar-divider border-b p-6">
           <h2 className="text-xl font-bold tracking-wider">FACULTY PORTAL</h2>
-          <p className="text-xs text-slate-400 mt-1 uppercase">Admin Console</p>
+          <p className="mt-1 text-xs uppercase tracking-wider opacity-80">Admin Console</p>
         </div>
-        
-        <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
+
+        <nav className="flex-1 space-y-2 overflow-y-auto p-4">
           {navItems.map((item) => {
             const isActive = location.pathname === item.path;
             return (
               <Link
                 key={item.path}
                 to={item.path}
-                className={`flex items-center p-3 rounded-lg transition-colors ${
-                  isActive 
-                    ? 'bg-blue-600 text-white' 
-                    : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                className={`sidebar-nav-link flex items-center rounded-lg px-3 py-3 transition-colors ${
+                  isActive ? 'is-active' : ''
                 }`}
               >
                 <span className="font-medium">{item.name}</span>
@@ -119,84 +119,91 @@ const AdminLayout = () => {
           })}
         </nav>
 
-        <div className="p-4 border-t border-slate-800 sticky bottom-0 bg-slate-900">
-          <button 
+        <div className="sidebar-divider border-t p-4">
+          <button
             onClick={() => setShowLogoutConfirm(true)}
-            className="w-full flex items-center justify-between p-3 rounded-lg text-slate-300 hover:bg-red-900/20 hover:text-red-400 transition-colors"
+            className="sidebar-logout flex w-full items-center justify-between rounded-lg px-3 py-3 transition-colors"
           >
-            <span className="font-medium">Logout</span>
-            <span aria-hidden="true" className="ml-3">↪</span>
+            <span className="flex items-center gap-3">
+              {logoutIcon}
+              <span className="font-medium">Logout</span>
+            </span>
           </button>
         </div>
       </aside>
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Topbar */}
-        <header className="bg-white border-b border-gray-200 min-h-16 flex items-center justify-between px-4 sm:px-6 lg:px-8 py-3">
-          <div className="flex items-center space-x-4">
-            <button
-              type="button"
-              onClick={() => setMobileMenuOpen(true)}
-              className="inline-flex lg:hidden items-center justify-center rounded-lg border border-gray-300 p-2 text-gray-600 hover:bg-gray-100"
-              aria-label="Open navigation"
-            >
-              <span className="text-lg leading-none">=</span>
-            </button>
-            <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">
-              {navItems.find(item => item.path === location.pathname)?.name || 'Admin'}
-            </h3>
-          </div>
-          <div className="relative" ref={adminDropdownRef}>
-            <button
-              type="button"
-              onClick={() => setShowAdminDropdown((prev) => !prev)}
-              className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold border-2 border-blue-500 hover:bg-blue-200 transition-colors"
-              aria-label="Toggle admin details"
-            >
-              A
-            </button>
+      <div className="flex flex-1 flex-col overflow-hidden">
+        <header className="theme-header px-4 py-3 backdrop-blur sm:px-6 lg:px-8">
+          <div className="flex min-h-10 items-center justify-between">
+            <div className="flex items-center gap-4">
+              <button
+                type="button"
+                onClick={() => setMobileMenuOpen(true)}
+                className="theme-icon-btn inline-flex items-center justify-center rounded-lg p-2 lg:hidden"
+                aria-label="Open navigation"
+              >
+                <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5" stroke="currentColor" strokeWidth="1.8">
+                  <path d="M4 7h16M4 12h16M4 17h16" strokeLinecap="round" />
+                </svg>
+              </button>
+              <h3 className="theme-text-secondary text-sm font-semibold uppercase tracking-wider">
+                {navItems.find((item) => item.path === location.pathname)?.name || 'Admin'}
+              </h3>
+            </div>
 
-            {showAdminDropdown && (
-              <div className="absolute right-0 mt-2 w-64 rounded-xl border border-gray-200 bg-white shadow-lg p-4 z-20">
-                <p className="text-sm font-bold text-gray-900">{adminInfo.name}</p>
-                <p className="text-xs text-gray-500 mt-0.5">{adminInfo.role}</p>
-                {adminInfo.email && <p className="text-xs text-gray-500 mt-2 break-all">{adminInfo.email}</p>}
+            <div className="flex items-center gap-3">
+              <ThemeToggle />
+              <div className="relative" ref={adminDropdownRef}>
+                <button
+                  type="button"
+                  onClick={() => setShowAdminDropdown((prev) => !prev)}
+                  className="theme-avatar flex h-10 w-10 items-center justify-center rounded-full font-bold transition-colors"
+                  aria-label="Toggle admin details"
+                >
+                  A
+                </button>
+
+                {showAdminDropdown ? (
+                  <div className="panel-card absolute right-0 z-20 mt-2 w-64 p-4">
+                    <p className="theme-text-primary text-sm font-bold">{adminInfo.name}</p>
+                    <p className="theme-text-secondary mt-0.5 text-xs">{adminInfo.role}</p>
+                    {adminInfo.email ? <p className="theme-text-secondary mt-2 break-all text-xs">{adminInfo.email}</p> : null}
+                  </div>
+                ) : null}
               </div>
-            )}
+            </div>
           </div>
         </header>
 
-        {/* Page Content */}
-        <main className="flex-1 overflow-y-auto bg-gray-50">
+        <main className="theme-content flex-1 overflow-y-auto">
           <Outlet />
         </main>
       </div>
 
-      {showLogoutConfirm && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
-          <div className="w-full max-w-sm rounded-xl bg-white border border-gray-200 shadow-xl p-5">
-            <h3 className="text-lg font-bold text-gray-900">Confirm Logout</h3>
-            <p className="mt-2 text-sm text-gray-600">Are you sure you want to logout?</p>
+      {showLogoutConfirm ? (
+        <div className="theme-overlay fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="panel-card w-full max-w-sm p-5">
+            <h3 className="theme-text-primary text-lg font-bold">Confirm Logout</h3>
+            <p className="theme-text-secondary mt-2 text-sm">Are you sure you want to logout?</p>
             <div className="mt-5 flex gap-3">
               <button
                 type="button"
                 onClick={() => setShowLogoutConfirm(false)}
-                className="flex-1 rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                className="theme-btn-secondary flex-1 rounded-lg px-4 py-2 text-sm font-semibold"
               >
-                No
+                Cancel
               </button>
               <button
                 type="button"
                 onClick={confirmLogout}
-                className="flex-1 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700"
+                className="theme-btn-danger flex-1 rounded-lg px-4 py-2 text-sm font-semibold"
               >
                 Logout
               </button>
             </div>
           </div>
         </div>
-      )}
+      ) : null}
 
       <FloatingChatbot />
     </div>
@@ -204,5 +211,3 @@ const AdminLayout = () => {
 };
 
 export default AdminLayout;
-
-

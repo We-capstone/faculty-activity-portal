@@ -1,335 +1,328 @@
-  import React, { useState } from 'react';
-  import { supabase } from './supabase';
-  import { useNavigate } from 'react-router-dom';
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { supabase } from './supabase';
 
-  const DEPARTMENTS = [
-    'Computer Science and Engineering',
-    'Information Technology',
-    'Electronics and Communication Engineering',
-    'Electrical and Electronics Engineering',
-    'Electrical Engineering',
-    'Mechanical Engineering',
-    'Civil Engineering',
-    'Chemical Engineering',
-    'Biotechnology',
-    'Biomedical Engineering',
-    'Aeronautical Engineering',
-    'Automobile Engineering',
-    'Artificial Intelligence and Data Science',
-    'Artificial Intelligence and Machine Learning',
-    'Data Science',
-    'Cyber Security',
-    'Robotics and Automation',
-    'Mechatronics Engineering',
-    'Production Engineering',
-    'Industrial Engineering',
-    'Architecture',
-    'Mathematics',
-    'Physics',
-    'Chemistry',
-    'English',
-    'Management Studies',
-    'Humanities and Social Sciences'
-  ];
+const DEPARTMENTS = [
+  'Computer Science and Engineering',
+  'Information Technology',
+  'Electronics and Communication Engineering',
+  'Electrical and Electronics Engineering',
+  'Electrical Engineering',
+  'Mechanical Engineering',
+  'Civil Engineering',
+  'Chemical Engineering',
+  'Biotechnology',
+  'Biomedical Engineering',
+  'Aeronautical Engineering',
+  'Automobile Engineering',
+  'Artificial Intelligence and Data Science',
+  'Artificial Intelligence and Machine Learning',
+  'Data Science',
+  'Cyber Security',
+  'Robotics and Automation',
+  'Mechatronics Engineering',
+  'Production Engineering',
+  'Industrial Engineering',
+  'Architecture',
+  'Mathematics',
+  'Physics',
+  'Chemistry',
+  'English',
+  'Management Studies',
+  'Humanities and Social Sciences'
+];
 
-  const DESIGNATIONS = [
-    'Assistant Professor',
-    'Associate Professor',
-    'Professor',
-    'Head of Department',
-    'Dean',
-    'Lecturer'
-  ];
+const ORCID_REGEX = /^\d{4}-\d{4}-\d{4}-\d{3}[\dX]$/;
 
-  const ORCID_REGEX = /^\d{4}-\d{4}-\d{4}-\d{3}[\dX]$/;
+const Auth = () => {
+  const [isLogin, setIsLogin] = useState(true);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [department, setDepartment] = useState('');
+  const [designation, setDesignation] = useState('');
+  const [role, setRole] = useState('FACULTY');
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
+  const [orcidId, setOrcidId] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
+  const navigate = useNavigate();
 
-  const Auth = () => {
-    const [isLogin, setIsLogin] = useState(true);
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
-    const [fullName, setFullName] = useState('');
-    const [department, setDepartment] = useState('');
-    const [designation, setDesignation] = useState('');
-    const [role, setRole] = useState('FACULTY');
-    const [loading, setLoading] = useState(false);
-    const [message, setMessage] = useState('');
-    const [errorMessage, setErrorMessage] = useState('');
-    const [orcidId, setOrcidId] = useState('');
+  const clearAlerts = () => {
+    setMessage('');
+    setErrorMessage('');
+  };
 
-    const navigate = useNavigate();
+  const switchMode = (loginMode) => {
+    setIsLogin(loginMode);
+    clearAlerts();
+  };
 
-    const handleAuth = async (e) => {
-      e.preventDefault();
-      setLoading(true);
-      setMessage('');
-      setErrorMessage('');
+  const handleAuth = async (event) => {
+    event.preventDefault();
+    setLoading(true);
+    clearAlerts();
 
-      try {
-        if (isLogin) {
-          const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-          if (error) throw error;
-          
-          // Fetch role from profiles table for reliability
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('role')
-            .eq('id', data.user.id)
-            .single();
+    try {
+      if (isLogin) {
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) throw error;
 
-          const userRole = profile?.role || data.user.user_metadata?.role;
-          
-          if (userRole === 'ADMIN') {
-            navigate('/admin');
-          } else {
-            navigate('/faculty');
-          }
-        } else {
-          if (orcidId && !ORCID_REGEX.test(orcidId)) {
-            throw new Error('Enter a valid ORCID iD (e.g., 0000-0002-1825-0097)');
-          }
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', data.user.id)
+          .single();
 
-
-          const { error } = await supabase.auth.signUp({
-            email,
-            password,
-            options: {
-              data: { full_name: fullName, department, designation, role, orcid_id: orcidId }
-            }
-          });
-          if (error) throw error;
-          setMessage('Signup successful. Please check your email for verification.');
-          setIsLogin(true);
+        const userRole = profile?.role || data.user.user_metadata?.role;
+        if (userRole === 'ADMIN') navigate('/admin');
+        else navigate('/faculty');
+      } else {
+        if (orcidId && !ORCID_REGEX.test(orcidId)) {
+          throw new Error('Enter a valid ORCID iD (e.g., 0000-0002-1825-0097)');
         }
-      } catch (error) {
-        setErrorMessage(error.message || 'Authentication failed');
-      } finally {
-        setLoading(false);
-      }
-    };
 
-    return (
-      <div className="min-h-screen bg-gray-100 p-4 sm:p-6 lg:p-10" style={{ fontFamily: '"Space Grotesk", "Segoe UI", sans-serif' }}>
-        <div className="mx-auto grid w-full max-w-5xl overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-2xl lg:h-[calc(100vh-5rem)] lg:grid-cols-[1.05fr_1fr]">
-          <div className="relative hidden bg-slate-900 p-10 text-white lg:block lg:sticky lg:top-0 lg:h-full">
-            <div className="absolute -left-20 top-12 h-56 w-56 rounded-full bg-blue-500/20 blur-3xl"></div>
-            <div className="absolute bottom-0 right-0 h-72 w-72 rounded-full bg-indigo-500/20 blur-3xl"></div>
-            <div className="relative z-10 flex h-full flex-col justify-between">
-              <div>
-                <p className="text-xs uppercase tracking-[0.25em] text-blue-200">Faculty Activity Portal</p>
-                <h1 className="mt-5 text-4xl font-semibold leading-tight">Track research, publish faster, stay approval-ready.</h1>
-                <p className="mt-5 max-w-sm text-sm text-slate-200/90">
-                  One workspace for faculty submissions and admin insights with clean scoring visibility.
-                </p>
-              </div>
-              <div></div>
-            </div>
+        const { error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: { full_name: fullName, department, designation, role, orcid_id: orcidId }
+          }
+        });
+
+        if (error) throw error;
+        setMessage('Signup successful. Please check your email for verification.');
+        setIsLogin(true);
+      }
+    } catch (error) {
+      setErrorMessage(error.message || 'Authentication failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="auth-page auth-force-light min-h-screen theme-surface-muted flex items-center justify-center p-4 sm:p-6 lg:p-8">
+      <div className="auth-frame mx-auto grid w-full max-w-6xl overflow-hidden rounded-[2rem] lg:h-[85vh] lg:grid-cols-[1.2fr_1fr]">
+        <div className="auth-hero relative hidden overflow-hidden p-12 text-white lg:flex lg:flex-col lg:justify-between">
+          <div className="auth-hero-glow auth-hero-glow-left" />
+          <div className="auth-hero-glow auth-hero-glow-right" />
+
+          <div className="relative z-10">
+            <span className="auth-badge inline-block px-4 py-1.5 text-xs font-bold uppercase tracking-[0.2em]">
+              Faculty Activity Portal
+            </span>
+            <h1 className="mt-8 text-5xl font-bold leading-[1.15] tracking-tight">
+              Track research, publish faster,
+              <br />
+              <span className="auth-accent-text">showcase excellence.</span>
+            </h1>
           </div>
 
-          <div className="p-6 sm:p-10 lg:overflow-y-auto">
-            <div className="mb-6">
-              <div className="flex rounded-xl bg-gray-100 p-1">
+          <div className="relative z-10 flex items-center justify-center">
+            <img
+              src="https://res.cloudinary.com/ddnzgizrv/image/upload/v1772457833/WhatsApp_Image_2026-03-02_at_18.47.03-Photoroom_mvkjyt.png"
+              alt="Faculty Activity Illustration"
+              className="w-full max-w-[620px] h-auto object-contain"
+            />
+          </div>
+
+          <div className="h-0" />
+        </div>
+
+        <div className="theme-surface p-8 sm:p-12 lg:overflow-y-auto flex flex-col justify-center">
+          <div className="mb-8">
+            <div className="theme-segment flex rounded-2xl p-1.5">
               <button
                 type="button"
-                onClick={() => {
-                  setIsLogin(true);
-                  setMessage('');
-                  setErrorMessage('');
-                }}
-                className={`flex-1 rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
-                  isLogin ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                onClick={() => switchMode(true)}
+                className={`flex-1 rounded-xl px-4 py-2.5 text-sm font-bold transition-all ${
+                  isLogin ? 'theme-segment-active' : 'theme-text-secondary'
                 }`}
               >
                 Login
               </button>
               <button
                 type="button"
-                onClick={() => {
-                  setIsLogin(false);
-                  setMessage('');
-                  setErrorMessage('');
-                }}
-                className={`flex-1 rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
-                  !isLogin ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                onClick={() => switchMode(false)}
+                className={`flex-1 rounded-xl px-4 py-2.5 text-sm font-bold transition-all ${
+                  !isLogin ? 'theme-segment-active' : 'theme-text-secondary'
                 }`}
               >
                 Sign Up
               </button>
-              </div>
             </div>
+          </div>
 
-            <div className="mb-6">
-              <h2 className="text-3xl font-semibold text-slate-900">{isLogin ? 'Welcome Back' : 'Create Account'}</h2>
-              <p className="mt-2 text-sm text-slate-500">
-                {isLogin ? 'Login to continue to your dashboard.' : 'Register your account to start adding activities.'}
-              </p>
+          <div className="mb-6">
+            <div className="mb-4 lg:hidden">
+              <span className="auth-badge inline-block px-3 py-1 text-[10px] font-bold uppercase tracking-wider">
+                Faculty Activity Portal
+              </span>
+              <h1 className="theme-text-primary mt-2 text-2xl font-bold leading-tight">
+                Track research, publish faster, <span className="auth-accent-text">showcase excellence.</span>
+              </h1>
             </div>
+            <h2 className="theme-text-primary text-3xl font-bold">{isLogin ? 'Welcome Back' : 'Create Account'}</h2>
+            <p className="theme-text-secondary mt-2 text-sm">
+              {isLogin ? 'Login to continue to your dashboard.' : 'Register your account to start adding activities.'}
+            </p>
+          </div>
 
-            {message && <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{message}</div>}
-            {errorMessage && <div className="mb-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{errorMessage}</div>}
+          {message ? <div className="theme-alert-success mb-4 rounded-lg px-4 py-3 text-sm">{message}</div> : null}
+          {errorMessage ? <div className="theme-alert-error mb-4 rounded-lg px-4 py-3 text-sm">{errorMessage}</div> : null}
 
-            <form onSubmit={handleAuth} className="space-y-4">
-              {!isLogin && (
+          <form onSubmit={handleAuth} className="space-y-5">
+            {!isLogin ? (
+              <div className="space-y-4">
                 <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500">Full Name</label>
+                  <label className="theme-text-secondary block text-xs font-semibold uppercase tracking-wider">Full Name</label>
                   <input
                     type="text"
                     required
-                    className="mt-2 block w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none transition focus:border-indigo-500"
+                    placeholder="Enter your full name"
+                    className="theme-input mt-2 block w-full rounded-xl px-4 py-3 outline-none transition"
                     value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                  /><div>
-                    <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500">
-                      ORCID ID
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="0000-0002-1825-0097"
-                      className="mt-2 block w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none transition focus:border-indigo-500"
-                      value={orcidId}
-                      onChange={(e) => setOrcidId(e.target.value)}
-                    />
-                  </div>  
-                </div>              
-              )}
-
-              <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500">Email Address</label>
-                <input
-                  type="email"
-                  required
-                  className="mt-2 block w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none transition focus:border-indigo-500"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                />
+                    onChange={(event) => setFullName(event.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="theme-text-secondary block text-xs font-semibold uppercase tracking-wider">ORCID ID</label>
+                  <input
+                    type="text"
+                    placeholder="0000-0002-1825-0097"
+                    className="theme-input mt-2 block w-full rounded-xl px-4 py-3 outline-none transition"
+                    value={orcidId}
+                    onChange={(event) => setOrcidId(event.target.value)}
+                  />
+                </div>
               </div>
+            ) : null}
 
-              <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500">Password</label>
+            <div>
+              <label className="theme-text-secondary block text-xs font-semibold uppercase tracking-wider">Email Address</label>
+              <input
+                type="email"
+                required
+                placeholder="Enter your email address"
+                className="theme-input mt-2 block w-full rounded-xl px-4 py-3 outline-none transition"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+              />
+            </div>
+
+            <div>
+              <label className="theme-text-secondary block text-xs font-semibold uppercase tracking-wider">Password</label>
+              <div className="relative mt-2">
                 <input
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   required
-                  className="mt-2 block w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none transition focus:border-indigo-500"
+                  placeholder="********"
+                  className="theme-input block w-full rounded-xl px-4 py-3 pr-11 outline-none transition"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={(event) => setPassword(event.target.value)}
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  className="theme-text-secondary absolute right-4 top-1/2 -translate-y-1/2 transition-colors hover:opacity-80 focus:outline-none"
+                >
+                  {showPassword ? (
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                  ) : (
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                  )}
+                </button>
               </div>
+            </div>
 
-              {!isLogin && (
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div>
-                    <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500">Department</label>
-                    <div className="relative mt-2">
-                      <select
-                        required
-                        className="block w-full appearance-none rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 pr-10 text-slate-900 shadow-sm outline-none transition focus:border-indigo-500 focus:bg-white"
-                        value={department}
-                        onChange={(e) => setDepartment(e.target.value)}
-                      >
-                        <option value="" disabled>
-                          Select Department
-                        </option>
-                        {DEPARTMENTS.map((dept) => (
-                          <option key={dept} value={dept}>
-                            {dept}
-                          </option>
-                        ))}
-                      </select>
-                      <svg
-                        viewBox="0 0 20 20"
-                        fill="none"
-                        className="pointer-events-none absolute right-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500"
-                      >
-                        <path d="m6 8 4 4 4-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500">Designation</label>
-                    <div className="relative mt-2">
-                      <select
-                        required
-                        className="block w-full appearance-none rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 pr-10 text-slate-900 shadow-sm outline-none transition focus:border-indigo-500 focus:bg-white"
-                        value={designation}
-                        onChange={(e) => setDesignation(e.target.value)}
-                      >
-                        <option value="" disabled>
-                          Select Designation
-                        </option>
-                        {DESIGNATIONS.map((item) => (
-                          <option key={item} value={item}>
-                            {item}
-                          </option>
-                        ))}
-                      </select>
-                      <svg
-                        viewBox="0 0 20 20"
-                        fill="none"
-                        className="pointer-events-none absolute right-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500"
-                      >
-                        <path d="m6 8 4 4 4-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                    </div>
-                  </div>
-                  <div className="sm:col-span-2">
-                    <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500">Role</label>
-                    <div className="relative mt-2">
-                      <select
-                        className="block w-full appearance-none rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 pr-10 text-slate-900 shadow-sm outline-none transition focus:border-indigo-500 focus:bg-white"
-                        value={role}
-                        onChange={(e) => setRole(e.target.value)}
-                      >
-                        <option value="FACULTY">FACULTY</option>
-                        <option value="ADMIN">ADMIN</option>
-                      </select>
-                      <svg
-                        viewBox="0 0 20 20"
-                        fill="none"
-                        className="pointer-events-none absolute right-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500"
-                      >
-                        <path d="m6 8 4 4 4-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                    </div>
+            {!isLogin ? (
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="theme-text-secondary block text-xs font-semibold uppercase tracking-wider">Department</label>
+                  <div className="relative mt-2">
+                    <select
+                      required
+                      className="theme-input block w-full appearance-none rounded-xl px-4 py-3 pr-10 outline-none transition"
+                      value={department}
+                      onChange={(event) => setDepartment(event.target.value)}
+                    >
+                      <option value="" disabled>Select Department</option>
+                      {DEPARTMENTS.map((dept) => (
+                        <option key={dept} value={dept}>{dept}</option>
+                      ))}
+                    </select>
+                    <svg viewBox="0 0 20 20" fill="none" className="theme-text-secondary pointer-events-none absolute right-3 top-1/2 h-5 w-5 -translate-y-1/2">
+                      <path d="m6 8 4 4 4-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
                   </div>
                 </div>
+
+                <div>
+                  <label className="theme-text-secondary block text-xs font-semibold uppercase tracking-wider">Designation</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Enter designation"
+                    className="theme-input mt-2 block w-full rounded-xl px-4 py-3 outline-none transition"
+                    value={designation}
+                    onChange={(event) => setDesignation(event.target.value)}
+                  />
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className="theme-text-secondary block text-xs font-semibold uppercase tracking-wider">Role</label>
+                  <div className="relative mt-2">
+                    <select
+                      className="theme-input block w-full appearance-none rounded-xl px-4 py-3 pr-10 outline-none transition"
+                      value={role}
+                      onChange={(event) => setRole(event.target.value)}
+                    >
+                      <option value="FACULTY">FACULTY</option>
+                      <option value="ADMIN">ADMIN</option>
+                    </select>
+                    <svg viewBox="0 0 20 20" fill="none" className="theme-text-secondary pointer-events-none absolute right-3 top-1/2 h-5 w-5 -translate-y-1/2">
+                      <path d="m6 8 4 4 4-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="theme-btn-primary mt-4 inline-flex w-full items-center justify-center rounded-xl px-4 py-4 text-base font-bold"
+            >
+              {loading ? (
+                <span className="inline-flex items-center gap-2">
+                  <span className="h-5 w-5 theme-spinner rounded-full border-2 border-t-transparent animate-spin" />
+                  Authenticating...
+                </span>
+              ) : isLogin ? (
+                'Login to Portal'
+              ) : (
+                'Create Account'
               )}
+            </button>
+          </form>
 
-              <button
-                type="submit"
-                disabled={loading}
-                className="mt-2 inline-flex w-full items-center justify-center rounded-xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {loading ? (
-                  <span className="inline-flex items-center gap-2">
-                    <span className="h-4 w-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
-                    Please wait...
-                  </span>
-                ) : isLogin ? (
-                  'Login'
-                ) : (
-                  'Sign Up'
-                )}
-              </button>
-            </form>
-
-            <p className="mt-6 text-center text-sm text-slate-500">
-              {isLogin ? "Don't have an account?" : 'Already have an account?'}
-              <button
-                type="button"
-                onClick={() => {
-                  setIsLogin(!isLogin);
-                  setMessage('');
-                  setErrorMessage('');
-                }}
-                className="ml-2 font-semibold text-indigo-600 hover:text-indigo-700"
-              >
-                {isLogin ? 'Create one' : 'Login here'}
-              </button>
-            </p>
-          </div>
+          <p className="theme-text-secondary mt-8 text-center text-sm font-medium">
+            {isLogin ? "Don't have an account?" : 'Already have an account?'}
+            <button
+              type="button"
+              onClick={() => switchMode(!isLogin)}
+              className="ml-2 font-bold text-[var(--color-primary)] transition-colors hover:text-[var(--color-primary-hover)]"
+            >
+              {isLogin ? 'Create one now' : 'Login here'}
+            </button>
+          </p>
         </div>
       </div>
-    );
-  };
+    </div>
+  );
+};
 
-  export default Auth;
+export default Auth;

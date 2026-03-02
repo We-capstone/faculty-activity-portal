@@ -3,10 +3,10 @@ import React, { useMemo } from 'react';
 export const ACTIVITY_KEYS = ['journals', 'conferences', 'patents', 'funding'];
 
 export const ACTIVITY_META = {
-  journals: { label: 'Journals', color: '#3b82f6' }, // blue-500
-  conferences: { label: 'Conferences', color: '#22c55e' }, // green-500
-  patents: { label: 'Patents', color: '#a855f7' }, // purple-500
-  funding: { label: 'Funding', color: '#f97316' } // orange-500
+  journals: { label: 'Journals', color: 'var(--chart-journals)' },
+  conferences: { label: 'Conferences', color: 'var(--chart-conferences)' },
+  patents: { label: 'Patents', color: 'var(--chart-patents)' },
+  funding: { label: 'Funding', color: 'var(--chart-funding)' }
 };
 
 export const toNumber = (value) => {
@@ -24,6 +24,37 @@ const mixRgb = (from, to, t) => {
   const g = Math.round(lerp(from[1], to[1], tt));
   const b = Math.round(lerp(from[2], to[2], tt));
   return `rgb(${r} ${g} ${b})`;
+};
+
+const cssVar = (name, fallback) => {
+  if (typeof window === 'undefined') return fallback;
+  const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  return value || fallback;
+};
+
+const parseCssColorToRgb = (value, fallback) => {
+  if (!value) return fallback;
+  const trimmed = value.trim();
+  const rgbMatch = trimmed.match(/^rgb[a]?\(([^)]+)\)$/i);
+  if (rgbMatch) {
+    const parts = rgbMatch[1]
+      .split(/[,\s/]+/)
+      .map((segment) => Number(segment))
+      .filter((segment) => Number.isFinite(segment))
+      .slice(0, 3);
+    if (parts.length === 3) return parts;
+  }
+
+  const hex = trimmed.replace('#', '');
+  if (hex.length === 6 || hex.length === 3) {
+    const normalized = hex.length === 3 ? hex.split('').map((char) => `${char}${char}`).join('') : hex;
+    const r = Number.parseInt(normalized.slice(0, 2), 16);
+    const g = Number.parseInt(normalized.slice(2, 4), 16);
+    const b = Number.parseInt(normalized.slice(4, 6), 16);
+    if ([r, g, b].every((part) => Number.isFinite(part))) return [r, g, b];
+  }
+
+  return fallback;
 };
 
 const buildSmoothPath = (points) => {
@@ -79,19 +110,19 @@ const Legend = ({ keys, compact = false }) => (
   <div className={`flex flex-wrap gap-3 ${compact ? 'text-xs' : 'text-sm'}`}>
     {keys.map((key) => (
       <div key={key} className="inline-flex items-center gap-2">
-        <span className="h-2.5 w-2.5 rounded-full" style={{ background: ACTIVITY_META[key]?.color || '#94a3b8' }} />
-        <span className="text-gray-700">{ACTIVITY_META[key]?.label || key}</span>
+        <span className="h-2.5 w-2.5 rounded-full" style={{ background: ACTIVITY_META[key]?.color || 'var(--text-muted)' }} />
+        <span className="text-[var(--text-secondary)]">{ACTIVITY_META[key]?.label || key}</span>
       </div>
     ))}
   </div>
 );
 
 export const ChartCard = ({ title, subtitle, right, children }) => (
-  <section className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-    <div className="p-5 sm:p-6 border-b border-gray-100 bg-gradient-to-r from-slate-50 to-white flex items-start justify-between gap-4">
+  <section className="theme-card rounded-2xl overflow-hidden">
+    <div className="theme-surface-muted p-5 sm:p-6 border-b theme-border flex items-start justify-between gap-4">
       <div className="min-w-0">
-        <h2 className="text-base sm:text-lg font-bold text-gray-900">{title}</h2>
-        {subtitle ? <p className="text-xs sm:text-sm text-gray-500 mt-1">{subtitle}</p> : null}
+        <h2 className="theme-text-primary text-base sm:text-lg font-bold">{title}</h2>
+        {subtitle ? <p className="theme-text-secondary text-xs sm:text-sm mt-1">{subtitle}</p> : null}
       </div>
       {right ? <div className="shrink-0">{right}</div> : null}
     </div>
@@ -149,14 +180,14 @@ export const StackedAreaChart = ({
   return (
     <div className="w-full overflow-x-auto">
       <svg width={width} height={height} className="block" role="img" aria-label="Departmental growth trend">
-        <rect x="0" y="0" width={width} height={height} fill="white" />
+        <rect x="0" y="0" width={width} height={height} fill="var(--surface)" />
 
         {yTicks.map((t) => {
           const y = yAt(t);
           return (
             <g key={t}>
-              <line x1={pad.left} y1={y} x2={width - pad.right} y2={y} stroke="#e5e7eb" strokeDasharray="3 3" />
-              <text x={pad.left - 10} y={y + 4} fontSize="11" textAnchor="end" fill="#6b7280">
+              <line x1={pad.left} y1={y} x2={width - pad.right} y2={y} stroke="var(--chart-grid)" strokeDasharray="3 3" />
+              <text x={pad.left - 10} y={y + 4} fontSize="11" textAnchor="end" fill="var(--chart-axis)">
                 {Math.round(t)}
               </text>
             </g>
@@ -170,7 +201,7 @@ export const StackedAreaChart = ({
             y={height - 12}
             fontSize="11"
             textAnchor="middle"
-            fill="#6b7280"
+            fill="var(--chart-axis)"
           >
             {year}
           </text>
@@ -182,7 +213,7 @@ export const StackedAreaChart = ({
           const topPath = buildSmoothPath(topPts);
           const bottomPath = buildSmoothPath([...bottomPts].reverse()).replace(/^M/, 'L');
           const d = `${topPath} L ${bottomPts[bottomPts.length - 1]?.x ?? pad.left} ${bottomPts[bottomPts.length - 1]?.y ?? (pad.top + innerH)} ${bottomPath} Z`;
-          const color = ACTIVITY_META[layer.key]?.color || '#94a3b8';
+          const color = ACTIVITY_META[layer.key]?.color || 'var(--text-muted)';
           return <path key={layer.key} d={d} fill={color} opacity="0.25" stroke={color} strokeWidth="2" />;
         })}
       </svg>
@@ -219,18 +250,18 @@ export const DoughnutChart = ({
   return (
     <div className="flex flex-col items-center gap-4">
       <svg width={size} height={size} role="img" aria-label="Activity mix">
-        <rect x="0" y="0" width={size} height={size} fill="white" />
+        <rect x="0" y="0" width={size} height={size} fill="var(--surface)" />
         {empty ? (
           <g>
-            <circle cx={cx} cy={cy} r={rOuter} fill="#f1f5f9" />
-            <circle cx={cx} cy={cy} r={rInner} fill="white" />
-            <text x={cx} y={cy} textAnchor="middle" dominantBaseline="middle" fontSize="12" fill="#64748b">
+            <circle cx={cx} cy={cy} r={rOuter} fill="var(--surface-muted)" />
+            <circle cx={cx} cy={cy} r={rInner} fill="var(--surface)" />
+            <text x={cx} y={cy} textAnchor="middle" dominantBaseline="middle" fontSize="12" fill="var(--chart-axis)">
               No data
             </text>
           </g>
         ) : (
           slices.map((slice) => {
-            const color = ACTIVITY_META[slice.key]?.color || '#94a3b8';
+            const color = ACTIVITY_META[slice.key]?.color || 'var(--text-muted)';
             const d = donutSlicePath({
               cx,
               cy,
@@ -244,10 +275,10 @@ export const DoughnutChart = ({
           })
         )}
 
-        <text x={cx} y={cy - 6} textAnchor="middle" fontSize="12" fill="#64748b">
+        <text x={cx} y={cy - 6} textAnchor="middle" fontSize="12" fill="var(--chart-axis)">
           Total
         </text>
-        <text x={cx} y={cy + 16} textAnchor="middle" fontSize="22" fontWeight="800" fill="#0f172a">
+        <text x={cx} y={cy + 16} textAnchor="middle" fontSize="22" fontWeight="800" fill="var(--text-primary)">
           {total}
         </text>
       </svg>
@@ -296,14 +327,14 @@ export const ClusteredBarChart = ({
     <div className="w-full overflow-x-auto">
       <div className="min-w-full">
         <svg width={width} height={height} className="block" role="img" aria-label="Cross-departmental volume leaderboard">
-          <rect x="0" y="0" width={width} height={height} fill="white" />
+          <rect x="0" y="0" width={width} height={height} fill="var(--surface)" />
 
           {ticks.map((t) => {
             const y = yAt(t);
             return (
               <g key={t}>
-                <line x1={pad.left} y1={y} x2={width - pad.right} y2={y} stroke="#e5e7eb" strokeDasharray="3 3" />
-                <text x={pad.left - 10} y={y + 4} fontSize="11" textAnchor="end" fill="#6b7280">
+                <line x1={pad.left} y1={y} x2={width - pad.right} y2={y} stroke="var(--chart-grid)" strokeDasharray="3 3" />
+                <text x={pad.left - 10} y={y + 4} fontSize="11" textAnchor="end" fill="var(--chart-axis)">
                   {Math.round(t)}
                 </text>
               </g>
@@ -321,8 +352,8 @@ export const ClusteredBarChart = ({
                   const y = yAt(v);
                   const rawH = pad.top + innerH - y;
                   const h = v > 0 ? Math.max(minBarPx, rawH) : 0;
-                  const color = ACTIVITY_META[key]?.color || '#94a3b8';
-                  const label = `${dept} • ${ACTIVITY_META[key]?.label || key}: ${v}`;
+                  const color = ACTIVITY_META[key]?.color || 'var(--text-muted)';
+                  const label = `${dept} - ${ACTIVITY_META[key]?.label || key}: ${v}`;
                   return (
                     <rect
                       key={key}
@@ -344,9 +375,9 @@ export const ClusteredBarChart = ({
                   y={height - 24}
                   fontSize="11"
                   textAnchor="middle"
-                  fill="#6b7280"
+                  fill="var(--chart-axis)"
                 >
-                  {dept.length > 10 ? `${dept.slice(0, 10)}…` : dept}
+                  {dept.length > 10 ? `${dept.slice(0, 10)}...` : dept}
                 </text>
               </g>
             );
@@ -358,8 +389,8 @@ export const ClusteredBarChart = ({
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
           <Legend keys={keys} compact />
           {invScaleLabel ? (
-            <p className="text-xs text-slate-500">
-              Scale: <span className="font-semibold text-slate-700">sqrt</span> (small values emphasized)
+            <p className="text-xs text-[var(--text-secondary)]">
+              Scale: <span className="font-semibold text-[var(--text-primary)]">sqrt</span> (small values emphasized)
             </p>
           ) : null}
         </div>
@@ -394,29 +425,29 @@ export const LineChart = ({
   return (
     <div className="w-full overflow-x-auto">
       <svg width={width} height={height} className="block" role="img" aria-label="System adoption rate">
-        <rect x="0" y="0" width={width} height={height} fill="white" />
+        <rect x="0" y="0" width={width} height={height} fill="var(--surface)" />
 
         {Array.from({ length: 5 }, (_, i) => (maxY * i) / 4).map((t) => {
           const y = yAt(t);
           return (
             <g key={t}>
-              <line x1={pad.left} y1={y} x2={width - pad.right} y2={y} stroke="#e5e7eb" strokeDasharray="3 3" />
-              <text x={pad.left - 10} y={y + 4} fontSize="11" textAnchor="end" fill="#6b7280">
+              <line x1={pad.left} y1={y} x2={width - pad.right} y2={y} stroke="var(--chart-grid)" strokeDasharray="3 3" />
+              <text x={pad.left - 10} y={y + 4} fontSize="11" textAnchor="end" fill="var(--chart-axis)">
                 {Math.round(t)}
               </text>
             </g>
           );
         })}
 
-        <path d={path} fill="none" stroke="#1d4ed8" strokeWidth="3" />
+        <path d={path} fill="none" stroke="var(--color-primary)" strokeWidth="3" />
         {points.map((p, idx) => (
-          <circle key={data[idx]?.year ?? idx} cx={p.x} cy={p.y} r="4" fill="#1d4ed8">
+          <circle key={data[idx]?.year ?? idx} cx={p.x} cy={p.y} r="4" fill="var(--color-primary)">
             <title>{`${data[idx]?.year}: ${data[idx]?.total}`}</title>
           </circle>
         ))}
 
         {years.map((year, idx) => (
-          <text key={year} x={xAt(idx)} y={height - 12} fontSize="11" textAnchor="middle" fill="#6b7280">
+          <text key={year} x={xAt(idx)} y={height - 12} fontSize="11" textAnchor="middle" fill="var(--chart-axis)">
             {year}
           </text>
         ))}
@@ -468,14 +499,14 @@ export const HeatmapMatrix = ({
   const innerH = depts.length * (cellSize + gap);
   const svgH = Math.max(height, top + innerH + 24);
 
-  const low = [239, 246, 255]; // blue-50
-  const high = [29, 78, 216]; // blue-700
+  const low = parseCssColorToRgb(cssVar('--chart-heat-low', 'rgb(239 246 255)'), [239, 246, 255]);
+  const high = parseCssColorToRgb(cssVar('--chart-heat-high', 'rgb(29 78 216)'), [29, 78, 216]);
   const colorFor = (value) => mixRgb(low, high, Math.pow(clamp01(toNumber(value) / maxCount), 0.7));
 
   return (
     <div className="w-full overflow-auto">
       <svg width={width} height={svgH} className="block" role="img" aria-label="Research intensity heatmap">
-        <rect x="0" y="0" width={width} height={svgH} fill="white" />
+        <rect x="0" y="0" width={width} height={svgH} fill="var(--surface)" />
 
         {years.map((year, idx) => (
           <text
@@ -484,7 +515,7 @@ export const HeatmapMatrix = ({
             y={top - 16}
             fontSize="11"
             textAnchor="middle"
-            fill="#475569"
+            fill="var(--chart-axis)"
           >
             {year}
           </text>
@@ -497,9 +528,9 @@ export const HeatmapMatrix = ({
             y={top + rIdx * (cellSize + gap) + cellSize / 2 + 4}
             fontSize="11"
             textAnchor="end"
-            fill="#475569"
+            fill="var(--chart-axis)"
           >
-            {dept.length > 18 ? `${dept.slice(0, 18)}…` : dept}
+            {dept.length > 18 ? `${dept.slice(0, 18)}...` : dept}
           </text>
         ))}
 
@@ -508,8 +539,8 @@ export const HeatmapMatrix = ({
             const value = map.get(`${dept}::${year}`) || 0;
             const x = left + cIdx * (cellSize + gap);
             const y = top + rIdx * (cellSize + gap);
-            const fill = value ? colorFor(value) : '#f1f5f9';
-            const label = `${dept} • ${year}: ${value}`;
+            const fill = value ? colorFor(value) : 'var(--surface-muted)';
+            const label = `${dept} - ${year}: ${value}`;
             return (
               <rect
                 key={`${dept}-${year}`}
@@ -519,7 +550,7 @@ export const HeatmapMatrix = ({
                 height={cellSize}
                 rx="6"
                 fill={fill}
-                stroke="#e2e8f0"
+                stroke="var(--chart-grid)"
               >
                 <title>{label}</title>
               </rect>
@@ -528,7 +559,7 @@ export const HeatmapMatrix = ({
         )}
 
         <g transform={`translate(${left}, ${top + innerH + 10})`}>
-          <text x="0" y="0" fontSize="11" fill="#475569">
+          <text x="0" y="0" fontSize="11" fill="var(--chart-axis)">
             Low
           </text>
           {Array.from({ length: 6 }, (_, i) => i / 5).map((t) => (
@@ -540,10 +571,10 @@ export const HeatmapMatrix = ({
               height="12"
               rx="4"
               fill={mixRgb(low, high, t)}
-              stroke="#e2e8f0"
+              stroke="var(--chart-grid)"
             />
           ))}
-          <text x={30 + 5 * 34 + 36} y="0" fontSize="11" fill="#475569">
+          <text x={30 + 5 * 34 + 36} y="0" fontSize="11" fill="var(--chart-axis)">
             High
           </text>
         </g>

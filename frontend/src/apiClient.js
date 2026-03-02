@@ -70,7 +70,10 @@ export async function apiRequest(path, options = {}) {
 
   if (!response.ok) {
     const message = payload?.error || payload?.message || `Request failed with status ${response.status}`;
-    throw new Error(message);
+    const error = new Error(message);
+    if (payload?.code) error.code = payload.code;
+    error.status = response.status;
+    throw error;
   }
 
   return payload;

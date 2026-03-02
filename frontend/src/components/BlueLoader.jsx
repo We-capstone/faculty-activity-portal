@@ -14,7 +14,7 @@ const BlueLoader = ({ size = 'md', fullScreen = false, className = '' }) => {
 
   return (
     <div className={`${containerClass} ${className}`}>
-      <div className={`${spinnerSize} rounded-full border-blue-600 border-t-transparent animate-spin`} aria-label="Loading" />
+      <div className={`${spinnerSize} theme-spinner rounded-full border-t-transparent animate-spin`} aria-label="Loading" />
     </div>
   );
 };

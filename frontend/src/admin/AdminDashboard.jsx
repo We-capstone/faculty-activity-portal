@@ -1,8 +1,15 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../supabase';
 import { apiRequest } from '../apiClient';
 import BlueLoader from '../components/BlueLoader';
+
+const EMPTY_FACULTY_DATA = {
+  journals: [],
+  conferences: [],
+  patents: [],
+  funding: []
+};
 
 const toNumber = (value) => {
   const num = Number(value);
@@ -11,6 +18,12 @@ const toNumber = (value) => {
 
 const normalizeRole = (role) => (role || '').toString().trim().toUpperCase();
 const isFacultyRole = (role) => normalizeRole(role) !== 'ADMIN';
+const formatDate = (dateValue) => (dateValue ? new Date(dateValue).toLocaleDateString() : 'N/A');
+const formatCurrency = (amount) => {
+  const numericAmount = Number(amount);
+  if (!Number.isFinite(numericAmount)) return 'N/A';
+  return numericAmount.toLocaleString(undefined, { maximumFractionDigits: 2 });
+};
 
 const QUICK_LINKS = [
   {
@@ -21,20 +34,90 @@ const QUICK_LINKS = [
   }
 ];
 
-const QuickLinkIcon = ({ icon }) => {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5" stroke="currentColor" strokeWidth="1.8">
-      <path d="M3 3v18h18" strokeLinecap="round" />
-      <path d="m7 14 3-3 3 2 4-5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-};
+const QuickLinkIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5" stroke="currentColor" strokeWidth="1.8">
+    <path d="M3 3v18h18" strokeLinecap="round" />
+    <path d="m7 14 3-3 3 2 4-5" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
+const SearchIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5" stroke="currentColor" strokeWidth="1.8">
+    <circle cx="11" cy="11" r="7" />
+    <path d="m20 20-3.5-3.5" strokeLinecap="round" />
+  </svg>
+);
 
 const AdminDashboard = () => {
   const [stats, setStats] = useState([]);
   const [topDepartments, setTopDepartments] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedFaculty, setSelectedFaculty] = useState(null);
+  const [facultyData, setFacultyData] = useState(EMPTY_FACULTY_DATA);
+  const [detailsLoading, setDetailsLoading] = useState(false);
+  const [searchError, setSearchError] = useState('');
+  const [searchErrorCode, setSearchErrorCode] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  const moduleCounts = useMemo(
+    () => ({
+      journals: facultyData.journals.length,
+      conferences: facultyData.conferences.length,
+      patents: facultyData.patents.length,
+      funding: facultyData.funding.length,
+      total: facultyData.journals.length + facultyData.conferences.length + facultyData.patents.length + facultyData.funding.length
+    }),
+    [facultyData]
+  );
+
+  const loadFacultyAchievementsByName = async (facultyName) => {
+    const normalizedName = facultyName.trim();
+    if (!normalizedName) {
+      setSearchError('Please enter a faculty name.');
+      setSearchErrorCode('NAME_REQUIRED');
+      setSelectedFaculty(null);
+      setFacultyData(EMPTY_FACULTY_DATA);
+      return;
+    }
+
+    setDetailsLoading(true);
+    setSearchError('');
+    setSearchErrorCode('');
+
+    try {
+      const {
+        data: { session }
+      } = await supabase.auth.getSession();
+
+      if (!session?.access_token) {
+        throw new Error('No session found');
+      }
+
+      const payload = await apiRequest('/admin/faculty-achievements', {
+        token: session.access_token,
+        query: { name: normalizedName }
+      });
+
+      console.log('[AdminDashboard] Faculty search result:', payload?.profile);
+
+      setSelectedFaculty(payload?.profile || null);
+      setFacultyData({
+        journals: payload?.achievements?.journals || [],
+        conferences: payload?.achievements?.conferences || [],
+        patents: payload?.achievements?.patents || [],
+        funding: payload?.achievements?.funding || []
+      });
+    } catch (loadError) {
+      console.error('[AdminDashboard] Faculty search load failed:', loadError);
+      setSearchError(loadError?.message || 'Unable to load faculty achievements');
+      setSearchErrorCode(loadError?.code || '');
+      setSelectedFaculty(null);
+      setFacultyData(EMPTY_FACULTY_DATA);
+    } finally {
+      setDetailsLoading(false);
+    }
+  };
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -50,11 +133,11 @@ const AdminDashboard = () => {
 
         const [analyticsPayload, profilesResponse] = await Promise.all([
           apiRequest('/analytics/stats', { token: session.access_token }),
-          supabase.from('profiles').select('id, role, department')
+          supabase.from('profiles').select('id, role')
         ]);
 
         const profiles = Array.isArray(profilesResponse?.data) ? profilesResponse.data : [];
-        const facultyCount = profiles.filter((profile) => isFacultyRole(profile?.role)).length;
+        const facultyCount = profiles.filter((profile) => profile?.id && isFacultyRole(profile?.role)).length;
 
         const deptVolume = Array.isArray(analyticsPayload?.deptVolume) ? analyticsPayload.deptVolume : [];
         const totalSubmissions = deptVolume.reduce((sum, row) => sum + toNumber(row?.total), 0);
@@ -66,7 +149,7 @@ const AdminDashboard = () => {
           moduleTotals.patents += toNumber(row?.patents);
           moduleTotals.funding += toNumber(row?.funding);
         });
-        const activeModules = Object.values(moduleTotals).filter((v) => v > 0).length;
+        const activeModules = Object.values(moduleTotals).filter((value) => value > 0).length;
 
         setStats([
           { label: 'Total Faculty', value: facultyCount, icon: 'TF', color: 'bg-blue-500' },
@@ -77,9 +160,9 @@ const AdminDashboard = () => {
 
         setTopDepartments(deptVolume.slice(0, 5));
         setError(null);
-      } catch (err) {
-        console.error('[AdminDashboard] API failure:', err);
-        setError(err.message);
+      } catch (statsError) {
+        console.error('[AdminDashboard] API failure:', statsError);
+        setError(statsError.message);
       } finally {
         setLoading(false);
       }
@@ -90,7 +173,23 @@ const AdminDashboard = () => {
     return () => clearInterval(interval);
   }, []);
 
+  const handleSearchSubmit = async (event) => {
+    event.preventDefault();
+    await loadFacultyAchievementsByName(searchTerm);
+  };
+
+  const clearSelection = () => {
+    setSelectedFaculty(null);
+    setSearchTerm('');
+    setSearchError('');
+    setSearchErrorCode('');
+    setFacultyData(EMPTY_FACULTY_DATA);
+  };
+
+  const isExpectedSearchError = searchErrorCode === 'FACULTY_NOT_FOUND' || searchErrorCode === 'NO_ACHIEVEMENTS';
+
   if (loading) return <BlueLoader />;
+
   if (error) {
     return (
       <div className="p-4 sm:p-6 text-red-500">
@@ -120,6 +219,162 @@ const AdminDashboard = () => {
         ))}
       </div>
 
+      <div className="bg-white p-5 sm:p-6 rounded-xl shadow-sm border border-gray-100 mb-8">
+        <h2 className="text-lg font-bold mb-4">Faculty Search</h2>
+
+        <form onSubmit={handleSearchSubmit} className="relative">
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+            <SearchIcon />
+          </span>
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(event) => {
+              setSearchTerm(event.target.value);
+              setSelectedFaculty(null);
+              setSearchError('');
+              setSearchErrorCode('');
+              setFacultyData(EMPTY_FACULTY_DATA);
+            }}
+            placeholder="Search by faculty name (e.g., John Doe)"
+            className="w-full rounded-xl border border-slate-300 bg-white py-3 pl-11 pr-24 text-sm text-slate-900 outline-none transition focus:border-blue-500"
+          />
+          <button
+            type="submit"
+            className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700"
+          >
+            Search
+          </button>
+        </form>
+
+        {detailsLoading ? <p className="mt-3 text-sm text-slate-500">Loading achievements...</p> : null}
+        {searchError ? (
+          <div
+            className={`mt-3 rounded-xl border px-4 py-3 text-sm ${
+              isExpectedSearchError ? 'border-slate-200 bg-white text-slate-600' : 'border-red-200 bg-red-50 text-red-600'
+            }`}
+          >
+            {searchError}
+          </div>
+        ) : null}
+
+        {selectedFaculty && !detailsLoading && !searchError ? (
+          <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4 sm:p-5">
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+              <div>
+                <p className="text-lg font-bold text-slate-900">{selectedFaculty.full_name}</p>
+                <p className="text-sm text-slate-600">{selectedFaculty.department}</p>
+                {selectedFaculty.email ? <p className="text-xs text-slate-500 mt-1">{selectedFaculty.email}</p> : null}
+              </div>
+              <button
+                type="button"
+                onClick={clearSelection}
+                className="self-start rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-white"
+              >
+                Clear
+              </button>
+            </div>
+
+            <div className="mt-4 grid grid-cols-2 lg:grid-cols-5 gap-3">
+              <div className="rounded-lg border border-slate-200 bg-white p-3">
+                <p className="text-xs uppercase text-slate-500 font-semibold">Total</p>
+                <p className="text-2xl font-bold text-slate-900 mt-1">{moduleCounts.total}</p>
+              </div>
+              <div className="rounded-lg border border-slate-200 bg-white p-3">
+                <p className="text-xs uppercase text-slate-500 font-semibold">Journals</p>
+                <p className="text-2xl font-bold text-slate-900 mt-1">{moduleCounts.journals}</p>
+              </div>
+              <div className="rounded-lg border border-slate-200 bg-white p-3">
+                <p className="text-xs uppercase text-slate-500 font-semibold">Conferences</p>
+                <p className="text-2xl font-bold text-slate-900 mt-1">{moduleCounts.conferences}</p>
+              </div>
+              <div className="rounded-lg border border-slate-200 bg-white p-3">
+                <p className="text-xs uppercase text-slate-500 font-semibold">Patents</p>
+                <p className="text-2xl font-bold text-slate-900 mt-1">{moduleCounts.patents}</p>
+              </div>
+              <div className="rounded-lg border border-slate-200 bg-white p-3">
+                <p className="text-xs uppercase text-slate-500 font-semibold">Funding</p>
+                <p className="text-2xl font-bold text-slate-900 mt-1">{moduleCounts.funding}</p>
+              </div>
+            </div>
+
+            <div className="mt-5 grid grid-cols-1 xl:grid-cols-2 gap-4">
+              <div className="rounded-lg border border-slate-200 bg-white p-4">
+                <h3 className="text-sm font-bold text-slate-900 mb-2">Journals</h3>
+                {facultyData.journals.length ? (
+                  <ul className="space-y-2">
+                    {facultyData.journals.slice(0, 6).map((entry) => (
+                      <li key={entry.journal_id} className="text-sm">
+                        <p className="font-semibold text-slate-800">{entry.title || 'Untitled'}</p>
+                        <p className="text-xs text-slate-500">
+                          {entry.journal_name || 'Unknown Journal'} - {formatDate(entry.publication_date)}
+                        </p>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-slate-500">No journal records.</p>
+                )}
+              </div>
+
+              <div className="rounded-lg border border-slate-200 bg-white p-4">
+                <h3 className="text-sm font-bold text-slate-900 mb-2">Conferences</h3>
+                {facultyData.conferences.length ? (
+                  <ul className="space-y-2">
+                    {facultyData.conferences.slice(0, 6).map((entry) => (
+                      <li key={entry.conference_id} className="text-sm">
+                        <p className="font-semibold text-slate-800">{entry.title || 'Untitled'}</p>
+                        <p className="text-xs text-slate-500">
+                          {entry.conference_name || 'Unknown Conference'} - {formatDate(entry.conference_date)}
+                        </p>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-slate-500">No conference records.</p>
+                )}
+              </div>
+
+              <div className="rounded-lg border border-slate-200 bg-white p-4">
+                <h3 className="text-sm font-bold text-slate-900 mb-2">Patents</h3>
+                {facultyData.patents.length ? (
+                  <ul className="space-y-2">
+                    {facultyData.patents.slice(0, 6).map((entry) => (
+                      <li key={entry.patent_id} className="text-sm">
+                        <p className="font-semibold text-slate-800">{entry.patent_title || 'Untitled Patent'}</p>
+                        <p className="text-xs text-slate-500">
+                          {entry.application_no || 'No Application No'} - {entry.patent_status || 'N/A'} - {formatDate(entry.filed_date)}
+                        </p>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-slate-500">No patent records.</p>
+                )}
+              </div>
+
+              <div className="rounded-lg border border-slate-200 bg-white p-4">
+                <h3 className="text-sm font-bold text-slate-900 mb-2">Research Funding</h3>
+                {facultyData.funding.length ? (
+                  <ul className="space-y-2">
+                    {facultyData.funding.slice(0, 6).map((entry) => (
+                      <li key={entry.funding_id} className="text-sm">
+                        <p className="font-semibold text-slate-800">{entry.project_title || 'Untitled Project'}</p>
+                        <p className="text-xs text-slate-500">
+                          {entry.funding_agency || 'Unknown Agency'} - {formatCurrency(entry.amount)} - {formatDate(entry.start_date)}
+                        </p>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-slate-500">No funding records.</p>
+                )}
+              </div>
+            </div>
+          </div>
+        ) : null}
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
           <h2 className="text-lg font-bold mb-4">Top Departments</h2>
@@ -135,7 +390,7 @@ const AdminDashboard = () => {
                 </span>
               </div>
             ))}
-            {topDepartments.length === 0 && <p className="text-center text-gray-500 py-4">No department data available</p>}
+            {topDepartments.length === 0 ? <p className="text-center text-gray-500 py-4">No department data available</p> : null}
           </div>
         </div>
 
@@ -146,13 +401,13 @@ const AdminDashboard = () => {
               <Link
                 key={link.to}
                 to={link.to}
-                className="group rounded-2xl border border-slate-200 bg-gradient-to-br from-white to-slate-50 p-5 hover:border-indigo-200 hover:shadow-md transition-all"
+                className="quick-link-card group rounded-2xl p-5 transition-all"
               >
-                <div className="mb-4 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-100 text-indigo-700 group-hover:bg-indigo-600 group-hover:text-white transition-colors">
-                  <QuickLinkIcon icon={link.icon} />
+                <div className="quick-link-icon mb-4 inline-flex h-11 w-11 items-center justify-center rounded-xl">
+                  <QuickLinkIcon />
                 </div>
-                <p className="text-base font-semibold text-slate-900">{link.title}</p>
-                <p className="mt-1 text-xs text-slate-500">{link.description}</p>
+                <p className="quick-link-title text-base font-semibold">{link.title}</p>
+                <p className="quick-link-description mt-1 text-xs">{link.description}</p>
               </Link>
             ))}
           </div>
