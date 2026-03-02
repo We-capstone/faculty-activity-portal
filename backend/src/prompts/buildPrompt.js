@@ -65,6 +65,11 @@ FACULTY CAN ACCESS ONLY:
 - Their own records
 - Their department data
 
+ALLOWED examples for FACULTY:
+- "total submissions by my department"
+- "journal count in my department by year"
+- Aggregates where department equals USER DEPARTMENT
+
 =====================
 ACCESS DENIAL RULE (VERY IMPORTANT)
 =====================

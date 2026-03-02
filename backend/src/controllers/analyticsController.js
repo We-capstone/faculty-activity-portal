@@ -16,9 +16,6 @@ export const getResearchStats = async (req, res) => {
         // Tables to query
         const tables = ['journal_publications', 'conference_publications', 'patents', 'research_funding'];
         
-        // For faculty: get their specific data
-        let facultyFilter = role !== 'ADMIN' ? id : null;
-
         const statsPromises = tables.map(async (table) => {
             // Mapping specific IDs based on your schema
             const idCol = table === 'research_funding' ? 'funding_id' : 
@@ -35,11 +32,6 @@ export const getResearchStats = async (req, res) => {
                 query = query.eq('profiles.department', targetDept);
             }
             
-            // Filter by faculty ID for non-admin users
-            if (facultyFilter) {
-                query = query.eq('profile_id', facultyFilter);
-            }
-
             const { data, error } = await query;
             if (error) console.error(`Error in ${table}:`, error.message);
             
@@ -58,7 +50,7 @@ export const getResearchStats = async (req, res) => {
             allProfiles = profilesData || [];
         }
 
-        const processedData = processResearchData(results, role, profile, allProfiles);
+        const processedData = processResearchData(results, role, profile, allProfiles, id);
 
         res.json({
             ...processedData,
@@ -69,11 +61,11 @@ export const getResearchStats = async (req, res) => {
     }
 };
 
-const processResearchData = (results, role, profile, allProfiles) => {
+const processResearchData = (results, role, profile, allProfiles, currentUserId) => {
     const yearlyGrowth = {}; 
     const deptVolume = {};   
     const heatmapData = [];
-    const annualData = {}; // For faculty performance report
+    const annualData = {}; // Personal annual score timeline for faculty
     
     let totalScore = 0;
     let approvedCount = 0;
@@ -96,6 +88,7 @@ const processResearchData = (results, role, profile, allProfiles) => {
             const isPending = item.status === 'PENDING';
             const isRejected = item.status === 'REJECTED';
             const profileId = item.profile_id;
+            const isCurrentFacultyRow = role !== 'ADMIN' ? profileId === currentUserId : true;
 
             // Category Mapping
             let key;
@@ -146,21 +139,23 @@ const processResearchData = (results, role, profile, allProfiles) => {
                 yearlyGrowth[year].total++;
             }
 
-            // Annual data (for faculty performance report)
-            if (!annualData[year]) {
-                annualData[year] = { year: year, journal_score: 0, conference_score: 0, total_score: 0 };
+            // Annual data for the logged-in faculty member only
+            if (isCurrentFacultyRow) {
+                if (!annualData[year]) {
+                    annualData[year] = { year: year, journal_score: 0, conference_score: 0, total_score: 0 };
+                }
+                if (table === 'journal_publications' && isApproved) {
+                    annualData[year].journal_score += 10;
+                    annualData[year].total_score += 10;
+                    totalScore += 10;
+                }
+                if (table === 'conference_publications' && isApproved) {
+                    annualData[year].conference_score += 5;
+                    annualData[year].total_score += 5;
+                    totalScore += 5;
+                }
+                if (isApproved) approvedCount++;
             }
-            if (table === 'journal_publications' && isApproved) {
-                annualData[year].journal_score += 10;
-                annualData[year].total_score += 10;
-                totalScore += 10;
-            }
-            if (table === 'conference_publications' && isApproved) {
-                annualData[year].conference_score += 5;
-                annualData[year].total_score += 5;
-                totalScore += 5;
-            }
-            if (isApproved) approvedCount++;
 
             // Department volume
             if (!deptVolume[dept]) {
@@ -195,7 +190,7 @@ const processResearchData = (results, role, profile, allProfiles) => {
         heatmapData,
         statusCounts,
         individualLeaderboard,
-        // New format for faculty performance report
+        // Faculty summary payload
         career: {
             career_score: career_score,
             approved_count: approvedCount,

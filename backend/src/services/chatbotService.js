@@ -11,7 +11,7 @@ export async function handleChatbotQuery(user, question) {
 
   console.log("Generated SQL:", sql);
 
-  if (sql.trim() === "ACCESS NOT ALLOWED") {
+  if (/^access\s+not\s+allowed$/i.test(sql.trim())) {
   return {
     success: false,
     message: "Access not allowed"

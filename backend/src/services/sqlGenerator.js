@@ -46,6 +46,9 @@ FACULTY CAN ACCESS ONLY:
 - Their own records
 - Their department data
 
+Allowed for FACULTY:
+- department-level totals, trends, and aggregates limited to USER DEPARTMENT
+
 ADMIN can access everything.
 
 =====================

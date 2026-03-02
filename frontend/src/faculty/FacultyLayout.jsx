@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Link, useNavigate, useLocation, Outlet } from 'react-router-dom';
-import { supabase } from '../supabase';
+import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import FloatingChatbot from '../Chatbot';
+import { supabase } from '../supabase';
 
 const FacultyLayout = () => {
   const navigate = useNavigate();
@@ -48,21 +48,20 @@ const FacultyLayout = () => {
     { name: 'Dashboard', path: '/faculty/dashboard', icon: '📊' },
     { name: 'My Activities', path: '/faculty/activities', icon: '📚' },
     { name: 'Add Activity', path: '/faculty/add-activity', icon: '➕' },
-    { name: 'Performance Report', path: '/faculty/report', icon: '📈' },
+    { name: 'Faculty Analytics', path: '/faculty/analytics', icon: '📈' }
   ];
 
   return (
     <div className="flex min-h-screen lg:h-screen bg-gray-100 lg:overflow-hidden">
-      {mobileMenuOpen && (
+      {mobileMenuOpen ? (
         <button
           type="button"
           aria-label="Close navigation"
           className="fixed inset-0 z-30 bg-black/40 lg:hidden"
           onClick={() => setMobileMenuOpen(false)}
         />
-      )}
+      ) : null}
 
-      {/* Sidebar */}
       <aside
         className={`fixed inset-y-0 left-0 z-40 w-72 max-w-[85vw] bg-white shadow-md flex flex-col h-screen transform transition-transform duration-200 lg:sticky lg:top-0 lg:w-64 lg:max-w-none lg:translate-x-0 ${
           mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
@@ -98,9 +97,7 @@ const FacultyLayout = () => {
         </div>
       </aside>
 
-      {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Top Header */}
         <header className="bg-white shadow-sm min-h-16 flex items-center justify-between px-4 sm:px-6 lg:px-8 py-3 flex-shrink-0">
           <div className="flex items-center">
             <button
@@ -112,7 +109,7 @@ const FacultyLayout = () => {
               <span className="text-lg leading-none">=</span>
             </button>
             <h1 className="text-lg font-semibold text-gray-800">
-              {navItems.find(item => item.path === location.pathname)?.name || 'Faculty Portal'}
+              {navItems.find((item) => item.path === location.pathname)?.name || 'Faculty Portal'}
             </h1>
           </div>
           <div className="flex items-center space-x-4">
@@ -126,13 +123,12 @@ const FacultyLayout = () => {
           </div>
         </header>
 
-        {/* Content Area */}
         <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-4 sm:p-6 lg:p-8">
           <Outlet />
         </main>
       </div>
 
-      {showLogoutConfirm && (
+      {showLogoutConfirm ? (
         <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
           <div className="w-full max-w-sm rounded-xl bg-white border border-gray-200 shadow-xl p-5">
             <h3 className="text-lg font-bold text-gray-900">Confirm Logout</h3>
@@ -155,7 +151,7 @@ const FacultyLayout = () => {
             </div>
           </div>
         </div>
-      )}
+      ) : null}
 
       <FloatingChatbot />
     </div>

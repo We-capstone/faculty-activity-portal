@@ -1,214 +1,121 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { apiRequest } from '../apiClient';
 import { supabase } from '../supabase';
-import { FACULTY_MODULES } from './modules';
+import BlueLoader from '../components/BlueLoader';
+import {
+  ACTIVITY_KEYS,
+  ACTIVITY_META,
+  ChartCard,
+  DoughnutChart,
+  StackedAreaChart,
+  toNumber
+} from '../components/AnalyticsCharts';
 
-const PerformanceReport = () => {
+const FacultyAnalytics = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [scoreData, setScoreData] = useState({ score: 0, yearly: [] });
-  const [activityCount, setActivityCount] = useState(0);
-
-  const publicationImpact = useMemo(() => {
-    if (activityCount >= 15) return 'High';
-    if (activityCount >= 5) return 'Moderate';
-    return 'Low';
-  }, [activityCount]);
+  const [yearlyGrowth, setYearlyGrowth] = useState([]);
+  const [deptVolume, setDeptVolume] = useState([]);
+  const [scope, setScope] = useState('My Department');
 
   useEffect(() => {
-    const loadReport = async () => {
+    const fetchAnalytics = async () => {
       setLoading(true);
       setError('');
-
       try {
         const {
           data: { session }
         } = await supabase.auth.getSession();
 
-        if (!session?.access_token) return;
+        if (!session?.access_token) {
+          setError('No active session');
+          return;
+        }
 
-        // 🔥 CALL YOUR WORKING BACKEND ENDPOINT
-        const analytics = await apiRequest('/analytics/stats', {
-          token: session.access_token
-        });
-
-        // Count all activities across selected modules
-        const rowsByModule = await Promise.all(
-          FACULTY_MODULES.map(async (module) => {
-            try {
-              return await apiRequest(`/faculty/${module.id}`, {
-                token: session.access_token
-              });
-            } catch {
-              return [];
-            }
-          })
-        );
-
-        const allRows = rowsByModule.flat();
-        setActivityCount(allRows.length);
-
-        // 🔥 MAP BACKEND RESPONSE STRUCTURE
-        setScoreData({
-          score: Number(analytics?.career?.career_score || 0),
-          yearly: Array.isArray(analytics?.annual)
-            ? analytics.annual.map((item) => ({
-                year: item.year,
-                score: (item.journal_score || 0) + (item.conference_score || 0)
-              }))
-            : []
-        });
-
+        const payload = await apiRequest('/analytics/stats', { token: session.access_token });
+        setYearlyGrowth(Array.isArray(payload?.yearlyGrowth) ? payload.yearlyGrowth : []);
+        setDeptVolume(Array.isArray(payload?.deptVolume) ? payload.deptVolume : []);
+        setScope(payload?.userContext?.scope || 'My Department');
       } catch (err) {
-        setError(err.message || 'Failed to load performance report');
+        setError(err.message || 'Failed to load faculty analytics');
       } finally {
         setLoading(false);
       }
     };
 
-    loadReport();
+    fetchAnalytics();
   }, []);
 
-  const handleExportPdf = () => {
-    window.print();
-  };
+  const departmentRow = useMemo(() => deptVolume[0] || null, [deptVolume]);
+  const departmentName = departmentRow?.department || 'My Department';
+  const departmentTotal = toNumber(departmentRow?.total);
+  const latestYear = yearlyGrowth.at(-1)?.year ?? '-';
+  const latestTotal = toNumber(yearlyGrowth.at(-1)?.total);
 
-  const handleExportExcel = () => {
-    const rows = scoreData.yearly.length
-      ? scoreData.yearly
-      : [{ year: new Date().getFullYear(), score: scoreData.score }];
+  const dominantActivity = useMemo(() => {
+    if (!departmentRow) return '-';
+    const ranked = [...ACTIVITY_KEYS].sort((a, b) => toNumber(departmentRow[b]) - toNumber(departmentRow[a]));
+    const key = ranked[0];
+    return departmentRow[key] ? ACTIVITY_META[key]?.label || key : '-';
+  }, [departmentRow]);
 
-    const header = ['Year', 'Score'];
-    const lines = [header.join(',')];
-
-    rows.forEach((row) => {
-      lines.push([row.year || '', row.score || 0].join(','));
-    });
-
-    const blob = new Blob([lines.join('\n')], {
-      type: 'text/csv;charset=utf-8;'
-    });
-
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'faculty-performance-report.csv';
-    link.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const chartValues = scoreData.yearly.length
-    ? scoreData.yearly
-    : [{ year: new Date().getFullYear(), score: scoreData.score }];
-
-  const maxScore = Math.max(
-    100,
-    ...chartValues.map((item) => Number(item.score || 0))
-  );
+  if (loading) return <BlueLoader />;
 
   return (
-    <div className="space-y-8">
-      {error && (
+    <div className="space-y-6">
+      {error ? (
         <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           {error}
         </div>
-      )}
+      ) : null}
 
-      {/* HEADER */}
-      <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-800">
-            My Performance Report
-          </h2>
-          <p className="text-gray-500">
-            Comprehensive summary based on your submitted activities
-          </p>
+      <div className="flex flex-col gap-1">
+        <h2 className="text-2xl font-bold text-gray-900">Faculty Analytics</h2>
+        <p className="text-sm text-gray-600">
+          Departmental benchmarking view for <span className="font-semibold text-gray-800">{departmentName}</span>.
+        </p>
+        <p className="text-xs text-gray-500">Scope: {scope}</p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+          <p className="text-xs uppercase tracking-wider text-gray-500 font-bold">Department</p>
+          <p className="mt-2 text-lg font-black text-gray-900">{departmentName}</p>
         </div>
-
-        <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
-          <button
-            onClick={handleExportPdf}
-            className="bg-white border border-gray-300 px-4 py-2 rounded-lg hover:bg-gray-50 text-gray-700 font-medium"
-          >
-            Export PDF
-          </button>
-
-          <button
-            onClick={handleExportExcel}
-            className="bg-white border border-gray-300 px-4 py-2 rounded-lg hover:bg-gray-50 text-gray-700 font-medium"
-          >
-            Export Excel
-          </button>
+        <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+          <p className="text-xs uppercase tracking-wider text-gray-500 font-bold">Department Total</p>
+          <p className="mt-2 text-3xl font-black text-blue-700">{departmentTotal.toLocaleString()}</p>
+        </div>
+        <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+          <p className="text-xs uppercase tracking-wider text-gray-500 font-bold">Latest Year</p>
+          <p className="mt-2 text-3xl font-black text-gray-900">{latestYear}</p>
+          <p className="text-xs text-gray-500 mt-1">{latestTotal.toLocaleString()} submissions</p>
+        </div>
+        <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+          <p className="text-xs uppercase tracking-wider text-gray-500 font-bold">Research Identity</p>
+          <p className="mt-2 text-3xl font-black text-gray-900">{dominantActivity}</p>
         </div>
       </div>
 
-      {/* SCORE CARDS */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-indigo-600 rounded-2xl p-6 text-white shadow-lg">
-          <h3 className="text-indigo-100 text-sm font-medium uppercase tracking-wider">
-            Overall Performance Score
-          </h3>
-          <p className="text-5xl font-bold mt-4">
-            {loading ? '-' : scoreData.score.toFixed(2)}
-          </p>
-          <p className="text-sm mt-4">Based on faculty analytics</p>
-        </div>
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        <ChartCard
+          title="Departmental Growth Trend"
+          subtitle='Stacked trend of journals, conferences, patents, and funding to visualize department "Research Velocity".'
+        >
+          <StackedAreaChart data={yearlyGrowth} keys={ACTIVITY_KEYS} />
+          {yearlyGrowth.length === 0 ? <p className="mt-4 text-sm text-gray-500">No yearly growth data available.</p> : null}
+        </ChartCard>
 
-        <div className="bg-white rounded-2xl p-6 border shadow-sm">
-          <h3 className="text-gray-500 text-sm font-medium uppercase tracking-wider">
-            Publication Impact
-          </h3>
-          <p className="text-4xl font-bold mt-4 text-gray-800">
-            {loading ? '-' : publicationImpact}
-          </p>
-        </div>
-
-        <div className="bg-white rounded-2xl p-6 border shadow-sm">
-          <h3 className="text-gray-500 text-sm font-medium uppercase tracking-wider">
-            Total Activities
-          </h3>
-          <p className="text-4xl font-bold mt-4 text-gray-800">
-            {loading ? '-' : activityCount}
-          </p>
-        </div>
-      </div>
-
-      {/* YEARLY PERFORMANCE CHART */}
-      <div className="bg-white rounded-2xl p-6 border shadow-sm">
-        <h3 className="text-lg font-bold text-gray-800 mb-6">
-          Yearly Performance Trend
-        </h3>
-
-        <div className="h-64 bg-gray-50 rounded-xl flex items-end justify-between px-8 pb-8 gap-4">
-          {chartValues.map((item) => {
-            const value = Number(item.score || 0);
-
-            // Make bars taller: scale up the height and increase min height
-            // Make bars extremely tall for maximum visibility
-            const height = Math.max(
-              120, // Very tall minimum
-              Math.round((value / maxScore) * 320) // much larger scale
-            );
-
-            return (
-              <div
-                key={item.year}
-                className="flex-1 flex flex-col items-center space-y-3"
-              >
-                <div
-                  className="w-full max-w-16 bg-blue-600 rounded-t-lg shadow-md border border-blue-800"
-                  style={{ height: `${height}%`, minHeight: '32px' }}
-                />
-                <span className="text-xs font-medium text-gray-800">
-                  {item.year}
-                </span>
-              </div>
-            );
-          })}
-        </div>
+        <ChartCard
+          title="Activity Mix (Department Profile)"
+          subtitle='Doughnut split of journals, conferences, patents, and funding to highlight department "Research Identity".'
+        >
+          <DoughnutChart row={departmentRow} keys={ACTIVITY_KEYS} />
+          {!departmentRow ? <p className="mt-4 text-sm text-gray-500">No departmental activity data available.</p> : null}
+        </ChartCard>
       </div>
     </div>
   );
 };
 
-export default PerformanceReport;
+export default FacultyAnalytics;
