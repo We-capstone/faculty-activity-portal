@@ -22,6 +22,20 @@ const AdminLayout = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = React.useState(false);
   const [showAdminDropdown, setShowAdminDropdown] = React.useState(false);
+  const [showPasswordModal, setShowPasswordModal] = React.useState(false);
+  const [passwordLoading, setPasswordLoading] = React.useState(false);
+  const [passwordError, setPasswordError] = React.useState('');
+  const [passwordMessage, setPasswordMessage] = React.useState('');
+  const [passwordForm, setPasswordForm] = React.useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  });
+  const [passwordVisibility, setPasswordVisibility] = React.useState({
+    currentPassword: false,
+    newPassword: false,
+    confirmPassword: false
+  });
   const [adminInfo, setAdminInfo] = React.useState({
     name: 'Admin User',
     role: 'Super Admin',
@@ -78,6 +92,125 @@ const AdminLayout = () => {
     } catch (error) {
       console.error('Logout error:', error);
       window.location.href = '/login';
+    }
+  };
+
+  const openPasswordModal = () => {
+    setShowAdminDropdown(false);
+    setPasswordError('');
+    setPasswordMessage('');
+    setPasswordForm({
+      currentPassword: '',
+      newPassword: '',
+      confirmPassword: ''
+    });
+    setPasswordVisibility({
+      currentPassword: false,
+      newPassword: false,
+      confirmPassword: false
+    });
+    setShowPasswordModal(true);
+  };
+
+  const closePasswordModal = () => {
+    if (passwordLoading) return;
+    setShowPasswordModal(false);
+    setPasswordError('');
+    setPasswordMessage('');
+    setPasswordForm({
+      currentPassword: '',
+      newPassword: '',
+      confirmPassword: ''
+    });
+    setPasswordVisibility({
+      currentPassword: false,
+      newPassword: false,
+      confirmPassword: false
+    });
+  };
+
+  const handlePasswordInput = (field) => (event) => {
+    setPasswordForm((prev) => ({
+      ...prev,
+      [field]: event.target.value
+    }));
+  };
+
+  const togglePasswordVisibility = (field) => () => {
+    setPasswordVisibility((prev) => ({
+      ...prev,
+      [field]: !prev[field]
+    }));
+  };
+
+  const handlePasswordUpdate = async (event) => {
+    event.preventDefault();
+    setPasswordError('');
+    setPasswordMessage('');
+
+    const currentPassword = passwordForm.currentPassword.trim();
+    const newPassword = passwordForm.newPassword.trim();
+    const confirmPassword = passwordForm.confirmPassword.trim();
+
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      setPasswordError('Please fill all password fields.');
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      setPasswordError('New password must be at least 6 characters.');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setPasswordError('New password and confirm password do not match.');
+      return;
+    }
+
+    if (currentPassword === newPassword) {
+      setPasswordError('New password must be different from current password.');
+      return;
+    }
+
+    setPasswordLoading(true);
+
+    try {
+      const {
+        data: { session }
+      } = await supabase.auth.getSession();
+
+      const email = session?.user?.email || adminInfo.email;
+      if (!email) throw new Error('Unable to identify account email.');
+
+      const { error: verifyError } = await supabase.auth.signInWithPassword({
+        email,
+        password: currentPassword
+      });
+      if (verifyError) {
+        setPasswordError('Current password is incorrect.');
+        return;
+      }
+
+      const { error: updateError } = await supabase.auth.updateUser({
+        password: newPassword
+      });
+      if (updateError) throw updateError;
+
+      setPasswordMessage('Password updated successfully.');
+      setPasswordForm({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: ''
+      });
+      setPasswordVisibility({
+        currentPassword: false,
+        newPassword: false,
+        confirmPassword: false
+      });
+    } catch (error) {
+      setPasswordError(error.message || 'Unable to update password.');
+    } finally {
+      setPasswordLoading(false);
     }
   };
 
@@ -168,6 +301,13 @@ const AdminLayout = () => {
                     <p className="theme-text-primary text-sm font-bold">{adminInfo.name}</p>
                     <p className="theme-text-secondary mt-0.5 text-xs">{adminInfo.role}</p>
                     {adminInfo.email ? <p className="theme-text-secondary mt-2 break-all text-xs">{adminInfo.email}</p> : null}
+                    <button
+                      type="button"
+                      onClick={openPasswordModal}
+                      className="theme-btn-secondary mt-3 w-full rounded-lg px-3 py-2 text-sm font-semibold"
+                    >
+                      Update Password
+                    </button>
                   </div>
                 ) : null}
               </div>
@@ -205,7 +345,123 @@ const AdminLayout = () => {
         </div>
       ) : null}
 
-      <FloatingChatbot />
+      {showPasswordModal ? (
+        <div className="theme-overlay fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="panel-card w-full max-w-md p-5">
+            <h3 className="theme-text-primary text-lg font-bold">Update Password</h3>
+            <p className="theme-text-secondary mt-2 text-sm">
+              Enter current password and set a new password.
+            </p>
+
+            {passwordError ? (
+              <div className="theme-alert-error mt-4 rounded-lg px-3 py-2 text-sm">{passwordError}</div>
+            ) : null}
+            {passwordMessage ? (
+              <div className="theme-alert-success mt-4 rounded-lg px-3 py-2 text-sm">{passwordMessage}</div>
+            ) : null}
+
+            <form onSubmit={handlePasswordUpdate} className="mt-4 space-y-4">
+              <div>
+                <label className="theme-text-secondary block text-xs font-semibold uppercase tracking-wider">Current Password</label>
+                <div className="relative mt-2">
+                  <input
+                    type={passwordVisibility.currentPassword ? 'text' : 'password'}
+                    value={passwordForm.currentPassword}
+                    onChange={handlePasswordInput('currentPassword')}
+                    className="theme-input block w-full rounded-lg px-3 py-2.5 pr-11 outline-none transition"
+                    autoComplete="current-password"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={togglePasswordVisibility('currentPassword')}
+                    className="theme-text-secondary absolute right-3 top-1/2 -translate-y-1/2 transition-colors hover:opacity-80 focus:outline-none"
+                    aria-label={passwordVisibility.currentPassword ? 'Hide current password' : 'Show current password'}
+                  >
+                    {passwordVisibility.currentPassword ? (
+                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                    ) : (
+                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="theme-text-secondary block text-xs font-semibold uppercase tracking-wider">New Password</label>
+                <div className="relative mt-2">
+                  <input
+                    type={passwordVisibility.newPassword ? 'text' : 'password'}
+                    value={passwordForm.newPassword}
+                    onChange={handlePasswordInput('newPassword')}
+                    className="theme-input block w-full rounded-lg px-3 py-2.5 pr-11 outline-none transition"
+                    autoComplete="new-password"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={togglePasswordVisibility('newPassword')}
+                    className="theme-text-secondary absolute right-3 top-1/2 -translate-y-1/2 transition-colors hover:opacity-80 focus:outline-none"
+                    aria-label={passwordVisibility.newPassword ? 'Hide new password' : 'Show new password'}
+                  >
+                    {passwordVisibility.newPassword ? (
+                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                    ) : (
+                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="theme-text-secondary block text-xs font-semibold uppercase tracking-wider">Confirm New Password</label>
+                <div className="relative mt-2">
+                  <input
+                    type={passwordVisibility.confirmPassword ? 'text' : 'password'}
+                    value={passwordForm.confirmPassword}
+                    onChange={handlePasswordInput('confirmPassword')}
+                    className="theme-input block w-full rounded-lg px-3 py-2.5 pr-11 outline-none transition"
+                    autoComplete="new-password"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={togglePasswordVisibility('confirmPassword')}
+                    className="theme-text-secondary absolute right-3 top-1/2 -translate-y-1/2 transition-colors hover:opacity-80 focus:outline-none"
+                    aria-label={passwordVisibility.confirmPassword ? 'Hide confirm password' : 'Show confirm password'}
+                  >
+                    {passwordVisibility.confirmPassword ? (
+                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                    ) : (
+                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              <div className="mt-5 flex gap-3">
+                <button
+                  type="button"
+                  onClick={closePasswordModal}
+                  className="theme-btn-secondary flex-1 rounded-lg px-4 py-2 text-sm font-semibold"
+                  disabled={passwordLoading}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="theme-btn-primary flex-1 rounded-lg px-4 py-2 text-sm font-semibold"
+                  disabled={passwordLoading}
+                >
+                  {passwordLoading ? 'Updating...' : 'Update Password'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
+
+      <FloatingChatbot title="Admin Assistant" />
     </div>
   );
 };

@@ -106,7 +106,7 @@ const MyActivities = () => {
       {error && <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="activity-table-scroll overflow-x-auto">
           <table className="min-w-[700px] w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>

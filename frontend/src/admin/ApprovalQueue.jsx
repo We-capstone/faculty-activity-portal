@@ -244,7 +244,7 @@ const ApprovalQueue = () => {
             </button>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="activity-table-scroll overflow-x-auto">
             <table className="w-full min-w-[980px] text-left">
               <thead className="bg-gray-50 border-b border-gray-100">
                 <tr>

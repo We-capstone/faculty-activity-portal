@@ -1,5 +1,8 @@
 import supabase from '../config/supabase.js';
 
+const normalizeRole = (role) => (role || '').toString().trim().toUpperCase();
+const isFacultyRole = (role) => normalizeRole(role) !== 'ADMIN';
+
 export const getResearchStats = async (req, res) => {
     try {
         const { role, id } = req.user;
@@ -46,7 +49,7 @@ export const getResearchStats = async (req, res) => {
             const { data: profilesData } = await supabase
                 .from('profiles')
                 .select('id, full_name, department, role')
-                .eq('role', 'FACULTY');
+                .not('id', 'is', null);
             allProfiles = profilesData || [];
         }
 
@@ -184,10 +187,15 @@ const processResearchData = (results, role, profile, allProfiles, currentUserId)
         .sort((a, b) => b.score - a.score)
         .slice(0, 10); // Top 10
 
+    const totalFaculty = role === 'ADMIN'
+        ? (allProfiles || []).filter((item) => item?.id && isFacultyRole(item?.role)).length
+        : 0;
+
     return {
         yearlyGrowth: Object.values(yearlyGrowth).sort((a, b) => a.year - b.year),
         deptVolume: Object.values(deptVolume).sort((a, b) => b.total - a.total),
         heatmapData,
+        totalFaculty,
         statusCounts,
         individualLeaderboard,
         // Faculty summary payload

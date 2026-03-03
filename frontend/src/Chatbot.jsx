@@ -67,7 +67,7 @@ const botIcon = (
   </svg>
 );
 
-const FloatingChatbot = () => {
+const FloatingChatbot = ({ title = "Faculty Assistant" }) => {
   const [open, setOpen] = useState(false);
   const [question, setQuestion] = useState("");
   const [messages, setMessages] = useState([]);
@@ -128,7 +128,7 @@ const FloatingChatbot = () => {
 
       {open ? (
         <div className="chatbot-panel">
-          <div className="chatbot-header">Faculty Assistant</div>
+          <div className="chatbot-header">{title}</div>
 
           <div className="chatbot-scroll">
             {messages.map((msg, index) => (

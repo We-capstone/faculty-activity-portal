@@ -16,8 +16,6 @@ const toNumber = (value) => {
   return Number.isFinite(num) ? num : 0;
 };
 
-const normalizeRole = (role) => (role || '').toString().trim().toUpperCase();
-const isFacultyRole = (role) => normalizeRole(role) !== 'ADMIN';
 const formatDate = (dateValue) => (dateValue ? new Date(dateValue).toLocaleDateString() : 'N/A');
 const formatCurrency = (amount) => {
   const numericAmount = Number(amount);
@@ -131,13 +129,8 @@ const AdminDashboard = () => {
           return;
         }
 
-        const [analyticsPayload, profilesResponse] = await Promise.all([
-          apiRequest('/analytics/stats', { token: session.access_token }),
-          supabase.from('profiles').select('id, role')
-        ]);
-
-        const profiles = Array.isArray(profilesResponse?.data) ? profilesResponse.data : [];
-        const facultyCount = profiles.filter((profile) => profile?.id && isFacultyRole(profile?.role)).length;
+        const analyticsPayload = await apiRequest('/analytics/stats', { token: session.access_token });
+        const facultyCount = toNumber(analyticsPayload?.totalFaculty);
 
         const deptVolume = Array.isArray(analyticsPayload?.deptVolume) ? analyticsPayload.deptVolume : [];
         const totalSubmissions = deptVolume.reduce((sum, row) => sum + toNumber(row?.total), 0);
@@ -219,32 +212,34 @@ const AdminDashboard = () => {
         ))}
       </div>
 
-      <div className="bg-white p-5 sm:p-6 rounded-xl shadow-sm border border-gray-100 mb-8">
+      <div className="faculty-search-shell p-5 sm:p-6 rounded-xl mb-8">
         <h2 className="text-lg font-bold mb-4">Faculty Search</h2>
 
-        <form onSubmit={handleSearchSubmit} className="relative">
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+        <form onSubmit={handleSearchSubmit}>
+          <div className="faculty-search-field">
+            <span className="faculty-search-icon">
             <SearchIcon />
-          </span>
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={(event) => {
-              setSearchTerm(event.target.value);
-              setSelectedFaculty(null);
-              setSearchError('');
-              setSearchErrorCode('');
-              setFacultyData(EMPTY_FACULTY_DATA);
-            }}
-            placeholder="Search by faculty name (e.g., John Doe)"
-            className="w-full rounded-xl border border-slate-300 bg-white py-3 pl-11 pr-24 text-sm text-slate-900 outline-none transition focus:border-blue-500"
-          />
-          <button
-            type="submit"
-            className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700"
-          >
-            Search
-          </button>
+            </span>
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(event) => {
+                setSearchTerm(event.target.value);
+                setSelectedFaculty(null);
+                setSearchError('');
+                setSearchErrorCode('');
+                setFacultyData(EMPTY_FACULTY_DATA);
+              }}
+              placeholder="Search by faculty name (e.g., John Doe)"
+              className="faculty-search-input text-sm"
+            />
+            <button
+              type="submit"
+              className="faculty-search-btn"
+            >
+              Search
+            </button>
+          </div>
         </form>
 
         {detailsLoading ? <p className="mt-3 text-sm text-slate-500">Loading achievements...</p> : null}
@@ -302,16 +297,18 @@ const AdminDashboard = () => {
               <div className="rounded-lg border border-slate-200 bg-white p-4">
                 <h3 className="text-sm font-bold text-slate-900 mb-2">Journals</h3>
                 {facultyData.journals.length ? (
-                  <ul className="space-y-2">
-                    {facultyData.journals.slice(0, 6).map((entry) => (
-                      <li key={entry.journal_id} className="text-sm">
-                        <p className="font-semibold text-slate-800">{entry.title || 'Untitled'}</p>
-                        <p className="text-xs text-slate-500">
-                          {entry.journal_name || 'Unknown Journal'} - {formatDate(entry.publication_date)}
-                        </p>
-                      </li>
-                    ))}
-                  </ul>
+                  <div className="activity-list-scroll">
+                    <ul className="activity-list-separated">
+                      {facultyData.journals.map((entry) => (
+                        <li key={entry.journal_id} className="activity-list-item text-sm">
+                          <p className="font-semibold text-slate-800">{entry.title || 'Untitled'}</p>
+                          <p className="text-xs text-slate-500">
+                            {entry.journal_name || 'Unknown Journal'} - {formatDate(entry.publication_date)}
+                          </p>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                 ) : (
                   <p className="text-sm text-slate-500">No journal records.</p>
                 )}
@@ -320,16 +317,18 @@ const AdminDashboard = () => {
               <div className="rounded-lg border border-slate-200 bg-white p-4">
                 <h3 className="text-sm font-bold text-slate-900 mb-2">Conferences</h3>
                 {facultyData.conferences.length ? (
-                  <ul className="space-y-2">
-                    {facultyData.conferences.slice(0, 6).map((entry) => (
-                      <li key={entry.conference_id} className="text-sm">
-                        <p className="font-semibold text-slate-800">{entry.title || 'Untitled'}</p>
-                        <p className="text-xs text-slate-500">
-                          {entry.conference_name || 'Unknown Conference'} - {formatDate(entry.conference_date)}
-                        </p>
-                      </li>
-                    ))}
-                  </ul>
+                  <div className="activity-list-scroll">
+                    <ul className="activity-list-separated">
+                      {facultyData.conferences.map((entry) => (
+                        <li key={entry.conference_id} className="activity-list-item text-sm">
+                          <p className="font-semibold text-slate-800">{entry.title || 'Untitled'}</p>
+                          <p className="text-xs text-slate-500">
+                            {entry.conference_name || 'Unknown Conference'} - {formatDate(entry.conference_date)}
+                          </p>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                 ) : (
                   <p className="text-sm text-slate-500">No conference records.</p>
                 )}
@@ -338,16 +337,18 @@ const AdminDashboard = () => {
               <div className="rounded-lg border border-slate-200 bg-white p-4">
                 <h3 className="text-sm font-bold text-slate-900 mb-2">Patents</h3>
                 {facultyData.patents.length ? (
-                  <ul className="space-y-2">
-                    {facultyData.patents.slice(0, 6).map((entry) => (
-                      <li key={entry.patent_id} className="text-sm">
-                        <p className="font-semibold text-slate-800">{entry.patent_title || 'Untitled Patent'}</p>
-                        <p className="text-xs text-slate-500">
-                          {entry.application_no || 'No Application No'} - {entry.patent_status || 'N/A'} - {formatDate(entry.filed_date)}
-                        </p>
-                      </li>
-                    ))}
-                  </ul>
+                  <div className="activity-list-scroll">
+                    <ul className="space-y-2">
+                      {facultyData.patents.map((entry) => (
+                        <li key={entry.patent_id} className="text-sm">
+                          <p className="font-semibold text-slate-800">{entry.patent_title || 'Untitled Patent'}</p>
+                          <p className="text-xs text-slate-500">
+                            {entry.application_no || 'No Application No'} - {entry.patent_status || 'N/A'} - {formatDate(entry.filed_date)}
+                          </p>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                 ) : (
                   <p className="text-sm text-slate-500">No patent records.</p>
                 )}
@@ -356,16 +357,18 @@ const AdminDashboard = () => {
               <div className="rounded-lg border border-slate-200 bg-white p-4">
                 <h3 className="text-sm font-bold text-slate-900 mb-2">Research Funding</h3>
                 {facultyData.funding.length ? (
-                  <ul className="space-y-2">
-                    {facultyData.funding.slice(0, 6).map((entry) => (
-                      <li key={entry.funding_id} className="text-sm">
-                        <p className="font-semibold text-slate-800">{entry.project_title || 'Untitled Project'}</p>
-                        <p className="text-xs text-slate-500">
-                          {entry.funding_agency || 'Unknown Agency'} - {formatCurrency(entry.amount)} - {formatDate(entry.start_date)}
-                        </p>
-                      </li>
-                    ))}
-                  </ul>
+                  <div className="activity-list-scroll">
+                    <ul className="space-y-2">
+                      {facultyData.funding.map((entry) => (
+                        <li key={entry.funding_id} className="text-sm">
+                          <p className="font-semibold text-slate-800">{entry.project_title || 'Untitled Project'}</p>
+                          <p className="text-xs text-slate-500">
+                            {entry.funding_agency || 'Unknown Agency'} - {formatCurrency(entry.amount)} - {formatDate(entry.start_date)}
+                          </p>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                 ) : (
                   <p className="text-sm text-slate-500">No funding records.</p>
                 )}

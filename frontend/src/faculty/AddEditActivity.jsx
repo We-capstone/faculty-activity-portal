@@ -27,14 +27,12 @@ const AddEditActivity = () => {
     paperLink: '',
     indexingDetails: '',
     journalQuartile: '',
-    orcidPutCode: '',
     conferenceName: '',
     conferenceAuthorPosition: '',
     conferenceDate: '',
     proceedingsDetails: '',
     conferenceLink: '',
     conferenceIndexingDetails: '',
-    conferenceOrcidPutCode: '',
     patentTitle: '',
     applicationNo: '',
     patentStatus: '',
@@ -47,8 +45,7 @@ const AddEditActivity = () => {
     projectTitle: '',
     amount: '',
     startDate: '',
-    endDate: '',
-    fundingOrcidPutCode: ''
+    endDate: ''
   });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -60,14 +57,9 @@ const AddEditActivity = () => {
     const dateFromYear = `${safeYear}-01-01`;
     const safeAuthorPosition =
       formData.authorPosition === '' ? undefined : Number(formData.authorPosition);
-    const safeOrcidPutCode = formData.orcidPutCode === '' ? undefined : Number(formData.orcidPutCode);
     const safeConferenceAuthorPosition =
       formData.conferenceAuthorPosition === '' ? undefined : Number(formData.conferenceAuthorPosition);
-    const safeConferenceOrcidPutCode =
-      formData.conferenceOrcidPutCode === '' ? undefined : Number(formData.conferenceOrcidPutCode);
     const safeFundingAmount = formData.amount === '' ? undefined : Number(formData.amount);
-    const safeFundingOrcidPutCode =
-      formData.fundingOrcidPutCode === '' ? undefined : Number(formData.fundingOrcidPutCode);
 
     const payloadByModule = {
       journals: {
@@ -78,8 +70,7 @@ const AddEditActivity = () => {
         publication_date: formData.publicationDate || dateFromYear,
         paper_link: formData.paperLink || undefined,
         indexing_details: formData.indexingDetails || formData.details || undefined,
-        journal_quartile: formData.journalQuartile || undefined,
-        orcid_put_code: Number.isFinite(safeOrcidPutCode) ? safeOrcidPutCode : undefined
+        journal_quartile: formData.journalQuartile || undefined
       },
       conferences: {
         title: formData.title,
@@ -88,8 +79,7 @@ const AddEditActivity = () => {
         conference_date: formData.conferenceDate || dateFromYear,
         proceedings_details: formData.proceedingsDetails || undefined,
         conference_link: formData.conferenceLink || undefined,
-        indexing_details: formData.conferenceIndexingDetails || formData.details || undefined,
-        orcid_put_code: Number.isFinite(safeConferenceOrcidPutCode) ? safeConferenceOrcidPutCode : undefined
+        indexing_details: formData.conferenceIndexingDetails || formData.details || undefined
       },
       books: {
         title: formData.title,
@@ -118,8 +108,7 @@ const AddEditActivity = () => {
         project_title: formData.projectTitle || formData.title,
         amount: Number.isFinite(safeFundingAmount) ? safeFundingAmount : undefined,
         start_date: formData.startDate || dateFromYear,
-        end_date: formData.endDate || undefined,
-        orcid_put_code: Number.isFinite(safeFundingOrcidPutCode) ? safeFundingOrcidPutCode : undefined
+        end_date: formData.endDate || undefined
       },
       consultancy: {
         title: formData.title,
@@ -434,17 +423,6 @@ const AddEditActivity = () => {
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <label className="block text-sm font-semibold text-gray-700">ORCID Put Code</label>
-                <input
-                  type="number"
-                  min="0"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
-                  placeholder="ORCID work put-code"
-                  value={formData.orcidPutCode}
-                  onChange={(e) => setFormData({ ...formData, orcidPutCode: e.target.value })}
-                />
-              </div>
             </>
           )}
 
@@ -486,29 +464,15 @@ const AddEditActivity = () => {
                 />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="block text-sm font-semibold text-gray-700">Indexing Details</label>
-                  <input
-                    type="text"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
-                    placeholder="Scopus / WoS / etc."
-                    value={formData.conferenceIndexingDetails}
-                    onChange={(e) => setFormData({ ...formData, conferenceIndexingDetails: e.target.value })}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="block text-sm font-semibold text-gray-700">ORCID Put Code</label>
-                  <input
-                    type="number"
-                    min="0"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
-                    placeholder="ORCID work put-code"
-                    value={formData.conferenceOrcidPutCode}
-                    onChange={(e) => setFormData({ ...formData, conferenceOrcidPutCode: e.target.value })}
-                  />
-                </div>
+              <div className="space-y-2">
+                <label className="block text-sm font-semibold text-gray-700">Indexing Details</label>
+                <input
+                  type="text"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
+                  placeholder="Scopus / WoS / etc."
+                  value={formData.conferenceIndexingDetails}
+                  onChange={(e) => setFormData({ ...formData, conferenceIndexingDetails: e.target.value })}
+                />
               </div>
             </>
           )}
@@ -598,17 +562,6 @@ const AddEditActivity = () => {
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <label className="block text-sm font-semibold text-gray-700">ORCID Put Code</label>
-                <input
-                  type="number"
-                  min="0"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
-                  placeholder="ORCID work put-code"
-                  value={formData.fundingOrcidPutCode}
-                  onChange={(e) => setFormData({ ...formData, fundingOrcidPutCode: e.target.value })}
-                />
-              </div>
             </>
           )}
 
@@ -630,11 +583,18 @@ const AddEditActivity = () => {
 
           <div className="space-y-2">
             <label className="block text-sm font-semibold text-gray-700">Proof Document (optional)</label>
-            <input
-              type="file"
-              className="block w-full text-sm text-gray-700"
-              onChange={(e) => setFormData({ ...formData, proofFile: e.target.files?.[0] || null })}
-            />
+            <div className="file-upload-control">
+              <input
+                id="proof-document-upload"
+                type="file"
+                className="hidden"
+                onChange={(e) => setFormData({ ...formData, proofFile: e.target.files?.[0] || null })}
+              />
+              <label htmlFor="proof-document-upload" className="file-upload-button">
+                Choose file
+              </label>
+              <span className="file-upload-name">{formData.proofFile?.name || 'No file chosen'}</span>
+            </div>
           </div>
 
           <div className="pt-4 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-3 sm:gap-4">
