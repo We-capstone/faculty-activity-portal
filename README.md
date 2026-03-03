@@ -71,8 +71,7 @@ GET /api/analytics/stats
 GET /api/admin/faculty-achievements
 POST /api/chatbot/ask
 
-
-Team
+### Team
 Ashlesha
 Richa
 Sanika
