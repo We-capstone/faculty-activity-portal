@@ -71,10 +71,10 @@ GET /api/analytics/stats
 GET /api/admin/faculty-achievements
 POST /api/chatbot/ask
 
-
-Team
-Ashlesha
-Richa
-Sanika
-Aarya
-Keerthana
+ ```
+## Team
+- Ashlesha
+- Richa
+- Sanika
+- Aarya
+- Keerthana
