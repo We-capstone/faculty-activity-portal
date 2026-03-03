@@ -54,11 +54,11 @@ cd backend
 npm install
 npm run dev
 
-
 # frontend
 cd frontend
 npm install
 npm run dev
+
 
 Frontend: http://localhost:5173
 Backend: http://localhost:5000
@@ -71,7 +71,8 @@ GET /api/analytics/stats
 GET /api/admin/faculty-achievements
 POST /api/chatbot/ask
 
-### Team
+
+Team
 Ashlesha
 Richa
 Sanika
